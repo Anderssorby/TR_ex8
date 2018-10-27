@@ -17,9 +17,11 @@ keep_tex: true
 knitr::opts_chunk$set(echo = TRUE)
 #install.packages("itsmr")
 #install.packages("forecast")
+#install.packages("astsa")
 library(forecast)
 library(latex2exp)
 library(itsmr)
+library(astsa)
 ```
 \abstract{
 }
@@ -33,6 +35,7 @@ library(itsmr)
 
 The seasonal ARIMA (SARIMA) process is a generalization of the ARIMA process can be defined as follows. Given two nonnegative integers $d$, and $D$, $\{X_t\}$ is a seasonal ARIMA$(p,d,q)\times(P,D,Q)_s$ with period $s$ if the differenced series $Y_t = (1-B)^d(1-B^s)^DX_t$ is a causal ARMA process defined by
 \begin{equation}
+\label{eq:SARIMA}
 \phi(B)\Phi(B^s)Y_t = \theta(B)\Theta(B^s)Z_t,\hspace{5em} \{Z_t\}\sim WN(0,\sigma^2)
 \end{equation}
 where $\phi(z)= 1-\phi_1 z-\ldots- \phi_p z^p$, $\Phi(z) = 1- \Phi_1 z - \ldots - \Phi_p z^p$, $\theta(z) = 1+ \theta_1 z + \ldots + \theta_q z^q$ and $\Theta(z) = 1- \Theta_1 z - \ldots - \Theta_p z^p$.
@@ -65,19 +68,85 @@ l <- length(x)
 ```
 
 # Data analysis
-The realization of our recieved process can be seen in the next plot.
 
-```{r TSMplot, echo=FALSE}
-plot(seq(1,l),x,type="l", xlab="t", ylab="X_t")
+```{r TSMplot, echo=FALSE, fig.cap="\\label{fig:timeseries} The data set AirPassengers, showing monthly totals of international airline passengers."}
+plot(seq(1,l),x,type="l", xlab="t", ylab=TeX("X_t"))
 ```
 
-There is no obvious need for a transformation of the data to fit an ARMA model. Based on the plot it seems probable that both the mean and variance is constant with respect to time. 
-<!--(DETTE HADDE VÆRT FINT Å DEMONSTRERE)-->
+The realization of the process from `AirPassengers` can be seen in figure \ref{fig:timeseries}.
+This process is clearly in need of some transformation.
+First of all it has a clear upwards trend, secondly there is some seasonal behaviour, and thirdly the variance seems to be increasing.
+A commonly used approach to solve the third problem is to consider the logarithm of the data.
 
-```{r lagplot, echo=FALSE,include=FALSE}
-lag.plot(x, 9, diag.col = "red")
+```{r logTSMplot, echo=FALSE, fig.cap="\\label{fig:logts} The data set AirPassengers, after taking the logarithm of the data."}
+lx <- log(x)
+plot(seq(1,l),lx,type="l", xlab="t", ylab=TeX("log X_t"))
 ```
 
+\noindent This is done in figure \ref{fig:logts}.
+The transformation seems to have stabilized the variance fairly well.
+Next we difference the logged data to remove the apparent linear trend.
+
+```{r difflogTSMplot, echo=FALSE, fig.cap="\\label{fig:dlts} The data set AirPassengers, showing monthly totals of international airline passengers."}
+dlx<- diff(lx)
+plot(seq(1,l-1),dlx,type="l", xlab="t", ylab=TeX("$\\nabla$ log X_t"))
+```
+
+\noindent The differenced and logged data can be seen in figure \ref{fig:dlts}.
+
+```{r dlxACF, echo=FALSE, fig.cap="\\label{fig:ACFdlx} The sample autocorrelation function of the differenced logged data"}
+Acf(dlx,main="")
+```
+
+\noindent After differencing the data still appears to have some seasonal effect.
+It is natural to suspect a season of 12, since these are monthly data.
+The ACF of $\nabla \log (X_t)$, as can be seen in figure \ref{fig:ACFdlx} has a clear peak at lag 12, thereby confirming these suspicions.
+By applying a twelfth-order difference we attain what appears to be stationary data, as can be seen in figure \ref{fig:ddlxts}.
+In terms of \eqref{eq:SARIMA}, we have are now considering a model where $d = 1, D = 1, s = 12$.
+
+
+```{r ddlx, echo=FALSE,fig.cap="\\label{fig:ddlxts} The data from AirPassengers after transformation into an apparent stationary series."}
+ddlx <- diff(dlx,12)
+plot(seq(1,l-13),ddlx,type="l", xlab="t", ylab=TeX("$\\nabla_{12} \\nabla$ log X_t"))
+```
+
+```{r seasonal, echo=FALSE,fig.cap="\\label{fig:sacf} Sample ACF and PACF of $\\nabla_{12} \\nabla$ log X_t"}
+test <- acf2(ddlx,50,main="")
+```
+To determine the seasonal components, as in \eqref{eq:SARIMA}, we consider the ACF and PACF of the transformed data.
+These are shown in figure \ref{fig:sacf}.
+At the seasonal lags, i.e. the lags which are multiples of $s$, the ACF cuts off after one season.
+This suggests that a seasonal component on the form of an SMA(1), that is $P = 0, Q = 1$.
+For the smaller lags, both the ACF and PACF gradually decrease in a way that suggests the within seasons part could be on the form of an ARMA(1,1), that is $p = 1, q = 1$. 
+By using these estimates for $p,P,q$ and $Q$ we can now estimate the coefficients in the polynomials $\phi, \theta$ and $\Theta$.
+Using the R function `arima` gives
+
+```{r sarima1}
+ordr <- c(1,1,1)
+seasonal <- list(order= c(0,1,1), period = 12)
+sarima1 <- arima(lx,,order=ordr, seasonal=seasonal)
+sarima1
+```
+
+Since the `ar1` coefficient is less than one standard deviation away from 0, it is possible that this model is overfitting the non-seasonal component.
+In order to get better estimates for the order of the polynomials, we use the R function `auto.arima` which uses the AICc to select the best from a range of models.
+
+```{r autoarima}
+slx <- ts(lx,frequency=12,start=c(1949,1))
+sarima <- auto.arima(slx,d = NA, D = NA, max.p=4, max.q=4, max.P=2, max.Q=2,
+                     max.order=20, max.d=2, max.D=1, start.p=1, start.q=1,
+                     start.P=1, start.Q=1, stationary=FALSE, seasonal=TRUE,
+                     trace=TRUE)
+sarima
+```
+
+Hence the best estimates for $p, d, q, P, D$ and $Q$, assuming $s=12$, gives us an ARIMA(0,1,1)\texttimes$(0,1,1)_{12}$ model with coefficients as in the printout above.
+Using the R function `sarima.for` we can forecast the logged data for the next year. 
+
+```{r forecast, fig.cap="\\label{fig:forecast} The forecasted values for the next year in red, with standard errors in grey"}
+forecast <- sarima.for(slx,12,0,1,1,0,1,1,12)
+plot.ts(c(ts(exp(lx),frequency=12,start=c(1949,1)),ts(exp(forecast$pred),frequency=12,start=c(1962,1))),col=1:2)
+```
 ```{r arma}
 ordr <-c(2,0,1)
 seasonal <- c(1,2,3)
@@ -111,7 +180,6 @@ theoreticalpacf <- ARMAacf(ar=ar,ma=ma,lag.max=(l-1),pacf=TRUE)
 plot(pacf,main="")
 lines(seq(1,(l-1)),theoreticalpacf,col=2,lty=3)
 ```
-
 
 Using the function `arima` we get MLE parameter estimates for the underlying process. 
 ```{r arimamodel,echo=FALSE}
