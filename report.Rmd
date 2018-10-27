@@ -26,8 +26,19 @@ library(itsmr)
 
 # Introduction
 
+In this project we will analyze a time series using two different models.
+
 ## The State space model
 
+A possibly multivariate state space model consists of two equations. First the observation equation 
+\begin{equation}
+Y_t = G_t X_t + W_t, \hspace{5em} t \in \mathbb{N}
+\end{equation}
+where $W_t \sim WN(0, \{R_t\})$. Secondly there is the state equation 
+\begin{equation}
+X_{t+1} = F_t X_t + V_t, \hspace{5em} t\in \mathbb{N}
+\end{equation}
+where $V_t \sim WN(0, \{Q_t\})$.
 
 ## The SARIMA process
 
