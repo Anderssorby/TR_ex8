@@ -28,7 +28,7 @@ library(astsa)
 
 # Introduction
 
-In this project we will analyze a time series using two different models.
+In this project we will analyze a time series using two different models, namely the state space and the SARIMA models. First we will define them. 
 
 ## The State space model
 
@@ -40,7 +40,7 @@ where $W_t \sim WN(0, \{R_t\})$. Secondly there is the state equation
 \begin{equation}
 X_{t+1} = F_t X_t + V_t, \hspace{5em} t\in \mathbb{N}
 \end{equation}
-where $V_t \sim WN(0, \{Q_t\})$.
+where $V_t \sim WN(0, \{Q_t\})$. 
 
 ## The SARIMA process
 
@@ -49,14 +49,15 @@ The seasonal ARIMA (SARIMA) process is a generalization of the ARIMA process can
 \label{eq:SARIMA}
 \phi(B)\Phi(B^s)Y_t = \theta(B)\Theta(B^s)Z_t,\hspace{5em} \{Z_t\}\sim WN(0,\sigma^2)
 \end{equation}
-where $\phi(z)= 1-\phi_1 z-\ldots- \phi_p z^p$, $\Phi(z) = 1- \Phi_1 z - \ldots - \Phi_p z^p$, $\theta(z) = 1+ \theta_1 z + \ldots + \theta_q z^q$ and $\Theta(z) = 1- \Theta_1 z - \ldots - \Theta_p z^p$.
+where $\phi(z)= 1-\phi_1 z-\ldots- \phi_p z^p$, $\Phi(z) = 1- \Phi_1 z - \ldots - \Phi_p z^p$, $\theta(z) = 1+ \theta_1 z + \ldots + \theta_q z^q$ and $\Theta(z) = 1- \Theta_1 z - \ldots - \Theta_p z^p$. This can also be reformulated to using only one polynomial on each side. 
 
-For causality for $Y_t$ to hold we need
+For causality for $Y_t$ to hold we need that $\phi(z)\neq 0$ and $\Phi(z)\neq 0$ for $|z| \leq 1$. The SARIMA allows for randomness in the seasonal pattern and is therefore more practical in applications than classical decomposition models. 
 
 
 # Theory
 
-## Model parameter estimation
+## Model parameter estimation and uncertainty
+
 
 <!--
 REPEATED ESTIMATION ON SIMULATED DATA COMES HERE:
