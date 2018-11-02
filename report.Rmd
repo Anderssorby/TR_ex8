@@ -58,11 +58,19 @@ For causality for $Y_t$ to hold we need that $\phi(z)\neq 0$ and $\Phi(z)\neq 0$
 
 ## Model parameter estimation and uncertainty
 
+For the state space model we can assume that the initial state, ${X}_1$, observation $Y_0$, and the noice vectors $W_t$ and $V_t$ are jointly Gaussian. This simplifies paramter estimation greatly. We are going to need the Kalman prediction for state space models to estimate parameters and do prediction. For state space models the best linear predictors $\hat{X}_t:=\hat{E}[X_t|Y_{t-1},\ldots, Y_0]$ and correspnding error covariance matricies $\Omega_t:=E[({X}_t-\hat{{X}}_t)(X_t-\hat{{X}}_t)^T]$ are uniquely determined by the initial conditions $\hat{{X}}$
 
-<!--
-REPEATED ESTIMATION ON SIMULATED DATA COMES HERE:
-We need to confirm that a given process is indeed an $ARMA(2,1)$
--->
+This gives us a conditional density
+\begin{equation}
+f_t({Y}_t | {Y}_{t-1}, \ldots,{Y}_0) = (2\pi)^{-nw/2} \left(\prod_{j=1}^n\det\Delta_j\right)^{-1/2} (2\pi)^{-w/2}(det\Delta_t)^{-1/2}\exp\left(-\frac{1}{2}I_t^T\Delta^{-1}I_t\right),
+\end{equation}
+and a likelihood function
+\begin{equation}
+L(\theta ; Y_{t-1}, \ldots, {Y}_0) =  \exp\left(-\frac{1}{2} \sum_{j=0}^n I_t^T \Delta_j^{-1} I_t \right).
+\end{equation}
+
+We can get the ML estimate for $\theta$ by maximizing this function. 
+
 ##Model choice
 
 Given a collection of models, the Akaike information criterion estimates the quality of each model relative to the other models. 
