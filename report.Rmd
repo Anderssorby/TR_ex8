@@ -18,10 +18,13 @@ knitr::opts_chunk$set(echo = TRUE)
 #install.packages("itsmr")
 #install.packages("forecast")
 #install.packages("astsa")
+#install.packages("tidyr")
 library(forecast)
 library(latex2exp)
 library(itsmr)
 library(astsa)
+library(tidyr)
+library(ggplot2)
 ```
 \abstract{
 }
@@ -107,7 +110,7 @@ plot(seq(1,l),lx,type="l", xlab="t", ylab=TeX("log X_t"))
 The transformation seems to have stabilized the variance fairly well.
 Next we difference the logged data to remove the apparent linear trend.
 
-```{r difflogTSMplot, echo=FALSE, fig.cap="\\label{fig:dlts} The data set AirPassengers, showing monthly totals of international airline passengers."}
+```{r difflogTSMplot, echo=FALSE, fig.cap="\\label{fig:dlts} The data set AirPassengers, transformed by differencing the logged data."}
 dlx<- diff(lx)
 plot(seq(1,l-1),dlx,type="l", xlab="t", ylab=TeX("$\\nabla$ log X_t"))
 ```
@@ -133,6 +136,7 @@ plot(seq(1,l-13),ddlx,type="l", xlab="t", ylab=TeX("$\\nabla_{12} \\nabla$ log X
 ```{r seasonal, echo=FALSE,fig.cap="\\label{fig:sacf} Sample ACF and PACF of $\\nabla_{12} \\nabla$ log X_t"}
 test <- acf2(ddlx,50,main="")
 ```
+
 To determine the seasonal components, as in \eqref{eq:SARIMA}, we consider the ACF and PACF of the transformed data.
 These are shown in figure \ref{fig:sacf}.
 At the seasonal lags, i.e. the lags which are multiples of $s$, the ACF cuts off after one season.
@@ -148,95 +152,92 @@ sarima1 <- arima(lx,,order=ordr, seasonal=seasonal)
 sarima1
 ```
 
-Since the `ar1` coefficient is less than one standard deviation away from 0, it is possible that this model is overfitting the non-seasonal component.
+Since the `ar1` coefficient is less than one standard deviation away from 0, it is conceivable that this model is overfitting the non-seasonal component.
 In order to get better estimates for the order of the polynomials, we use the R function `auto.arima` which uses the AICc to select the best from a range of models.
+This gives the following model:
 
-```{r autoarima}
+```{r autoarima, include = FALSE}
 slx <- ts(lx,frequency=12,start=c(1949,1))
-sarima <- auto.arima(slx,d = NA, D = NA, max.p=4, max.q=4, max.P=2, max.Q=2,
+auto.arima(slx,d = NA, D = NA, max.p=4, max.q=4, max.P=2, max.Q=2,
                      max.order=20, max.d=2, max.D=1, start.p=1, start.q=1,
                      start.P=1, start.Q=1, stationary=FALSE, seasonal=TRUE,
                      trace=TRUE)
+ord <- c(0,1,1)
+seas <- list(order=c(0,1,1),period=12)
+sarima <- arima(slx,order=ord,seasonal=seas)
+```
+```{r sarima2, echo=FALSE}
 sarima
 ```
+Hence the best estimates for $p, d, q, P, D$ and $Q$, assuming $s=12$, results in an ARIMA(0,1,1)\texttimes$(0,1,1)_{12}$ model with coefficients as in the output above.
+By simulating from an ARIMA(0,1,1)\texttimes$(0,1,1)_{12}$ model with these coefficients we can get an empirical estimation of their distributions.
+This also allows us to estimate the uncertainty of $\sigma^2$, which is not given by the printout above.
 
-Hence the best estimates for $p, d, q, P, D$ and $Q$, assuming $s=12$, gives us an ARIMA(0,1,1)\texttimes$(0,1,1)_{12}$ model with coefficients as in the printout above.
-Using the R function `sarima.for` we can forecast the logged data for the next year. 
+```{r simulations, eval=FALSE,include=FALSE}
+n_sim <- 500
+ts_sims_arima <- NULL
+ts_sims <-  matrix(data = 0, ncol=144, nrow=n_sim)
+ts_sims_param <- matrix(data = 0, ncol=3, nrow=n_sim, dimnames = list(NULL, c( "ma1","sma1","sigma^2")))
 
-```{r forecast, fig.cap="\\label{fig:forecast} The forecasted values for the next year in red, with standard errors in grey"}
-forecast <- sarima.for(slx,12,0,1,1,0,1,1,12)
-plot.ts(c(ts(exp(lx),frequency=12,start=c(1949,1)),ts(exp(forecast$pred),frequency=12,start=c(1962,1))),col=1:2)
+for (i in 1:n_sim) {
+  ts_sim <- simulate(sarima)
+  ts_sims[i,] <- ts_sim
+  ts <- arima(ts_sim, order = ord, seasonal = seas)
+  ts_sims_arima <- c(ts_sims_arima, ts)
+  ma1_sim <- ts$coef[1]
+  sma1_sim <- ts$coef[2]
+  sigma2_sim <- ts$sigma2
+  ts_sims_param[i,1] <- ma1_sim
+  ts_sims_param[i,2] <- sma1_sim
+  ts_sims_param[i,3] <- sigma2_sim
+}
+
+saveRDS(ts_sims_param, "ts_sims_param.txt")
 ```
-```{r arma}
-ordr <-c(2,0,1)
-seasonal <- c(1,2,3)
+```{r printsimparam,echo=FALSE}
+ts_sims_param <- as.data.frame(readRDS("ts_sims_param.txt"))
+n_sim <- length(ts_sims_param[,1])
+mean_param <- colSums(ts_sims_param)/n_sim
+covariance_param <- var(ts_sims_param)
 
-arima=arima(x,order=ordr,include.mean=FALSE)
+print("mean parameter values")
+print(mean_param)
 
-phi1 <- arima$coef[1]
-phi2 <- arima$coef[2]
-ar <- c(phi1,phi2)
+print("parameter sample covariance")
+print(covariance_param)
 
-theta1 <- arima$coef[3]
-ma <- c(theta1)
-
-sigma2 <- arima$sigma2
-sigma <- sqrt(sigma2)
-```
-```{r acvf,fig.cap="The sample autocorrelation $\\hat{\\rho}(h)$ \\label{fig:acf}",echo=FALSE}
-lag.max <- 100
-acf<-acf(x,lag.max=lag.max,plot=FALSE)
-plot(acf,main="")
-theoreticalacf <- ARMAacf(ar=ar,ma=ma,lag.max=(l-1))
-lines(seq(0,(l-1)),theoreticalacf,col=2,lty=3)
-```
-
-It is conceivable, based on the sample autocorrelation function in figure \ref{fig:acf}, that there is some underlying seasonal lag. To check this we used the functions `decompose` and `stl` in R, both of which claims that the series is not periodic.  More importantly the sample ACF forces us to reject the hypothesis that the data is generated by an \(MA(q)\) model (atleast for \(q\leq 50\)). The sample partial autocorrelation function in figure \ref{fig:pacf} does not force us to reject that the data is generated by an \(AR(p)\) series. Both of these figures include a dotted red line indicating the theoretical functions for the $ARMA(2,1)$ model we find below.
-
-```{r pacf,echo=FALSE,fig.cap="The sample partial autocorrelation $\\hat{\\alpha}(h)$ \\label{fig:pacf}"}
-lag.max <- 100
-pacf <- acf(x,type="partial",lag.max=lag.max,plot=FALSE)
-theoreticalpacf <- ARMAacf(ar=ar,ma=ma,lag.max=(l-1),pacf=TRUE)
-plot(pacf,main="")
-lines(seq(1,(l-1)),theoreticalpacf,col=2,lty=3)
-```
-
-Using the function `arima` we get MLE parameter estimates for the underlying process. 
-```{r arimamodel,echo=FALSE}
-print(arima)
+print("parameter sample variance")
+print(sqrt(diag(covariance_param)))
 ```
 
-
-
-```{r prediction,fig.cap="A quantile-quantile plot of the estimated noise and a normal distribution\\label{fig:noise}", eval=FALSE}
-
+```{r simulationshist, echo = FALSE, fig.cap="\\label{fig:arimasimparam} Estimated coefficients from 500 realizations of the ARIMA(0,1,1)\\texttimes$(0,1,1)_{12}$ process, given the estimated coefficients from the original series."}
+ggplot(gather(ts_sims_param), aes(value)) + 
+    geom_histogram(bins = 10,col = "black",fill = "cyan3") + 
+    facet_wrap(~key, scales = 'free_x')
 ```
 
 ## Model prediction
-The projection \(P_n X_{n+h}\) is the linear combination of \(1,X_1,\hdots, X_n\) that forecasts \(X_{n+h}\) with minimum mean squared error. For a process with zero mean that is
+
+Using the R function `sarima.for` we can forecast the logged data for the next year.
+The result is shown in figure \ref{fig:forecast}
+
+```{r forecast, fig.cap="\\label{fig:forecast} The forecasted values of the logged air passenger data for the next twelve months in red, with standard errors in grey"}
+forecast <- sarima.for(slx,12,0,1,1,0,1,1,12)
+```
+
+Since the process $Y_t$ from equation \eqref{eq:SARIMA} is a weakly stationary ARMA process, we can create its best linear predictors as we did previously.
+That is 
 
 \begin{equation}
-P_n X_{n+h} = \sum_{i=1}^n a_i X_{n+h-i}
+P_n Y_{n+h} = \sum_{i=1}^n a_i Y_{n+h-i}
 \end{equation}
 
-\noindent such that
-
-\begin{equation}
-\frac{\partial}{\partial a_i} \E[(X_{n+h}-a_1 X_n - \dots - a_n X_1)^2] = 0, \hspace{1cm} i=1,\hdots,n.
-\end{equation}
-
-\noindent Evaluating the derivatives gives the equations
-
-\begin{equation}
-\E[(X_{n+h}-\sum_{i=1}^n a_i X_{n+1-i})X_{n+1-j}] = 0,  \hspace{1cm} j=1,\hdots,n
-\end{equation}
-
-\noindent which can be written in vector notation as 
+\noindent where $a_i$ is such that
 
 \begin{equation}
 \Gamma_n \bm{a}_n = \gamma_n(h)
 \end{equation}
-
+<!--
 \noindent where 
 \begin{equation}
 \gamma_n = (\gamma(h),\gamma(h+1),\hdots,\gamma(h+n-1))',
@@ -244,62 +245,93 @@ P_n X_{n+h} = \sum_{i=1}^n a_i X_{n+h-i}
 
 \noindent and
 \begin{equation}
-\Gamma_n = [\Cov(X_i,X_j)]_{i,j=1}^n.
+\Gamma_n = [\Cov(Y_i,Y_j)]_{i,j=1}^n.
 \end{equation}
-
-\noindent The expected prediction error is zero, and the expected mean square prediction error is given by
+-->
+\noindent As before, the expected prediction error is zero, and the expected mean square prediction error is given by
 
 \begin{equation}
-\E[(X_{n+h}-P_nX_{n+h})^2] = \gamma(0) - \bm{a}'\gamma_n(h).
+\E[(Y_{n+h}-P_nY_{n+h})^2] = \gamma(0) - \bm{a}'\gamma_n(h).
 \end{equation}
 
-```{r onestep, echo=FALSE}
-itsmrarma<-arma(x,p=2,q=1)
+In figure \ref{fig:onestepy} we plot the process \(Y_t\) in red along with the one-step ahead predictions \(\hat{Y_t}\) in blue and the corresponding standard error in gray. 
 
-gamma<-aacvf(itsmrarma,499)
-Gamma <- matrix(ncol=l,nrow=l)
-for (i in 1:l){
-  for (j in 1:l){
+```{r onestep, echo=FALSE}
+arma_y <- arima(ddlx,order = c(0,0,13),fixed=c(sarima$coef[1],0,0,0,0,0,0,0,0,0,0,sarima$coef[2],sarima$coef[1]*sarima$coef[2],0))
+arma_y_components <- list(phi=0,theta=c(arma_y$coef[1:13]),sigma2=arma_y$sigma2)
+ls <- l - 13
+gamma<-aacvf(arma_y_components,130)
+Gamma <- matrix(ncol=ls,nrow=ls)
+for (i in 1:ls){
+  for (j in 1:ls){
     Gamma[i,j] <- gamma[abs(i-j)+1]
   }
 }
 
-a <- vector("list",l-1)
-for(i in 1:(l-1)){
+a <- vector("list",ls-1)
+for(i in 1:(ls-1)){
   a[[i]] = solve(Gamma[1:i,1:i])%*%gamma[2:(i+1)]
 }
 
-xhat <-rep(0,l)
-xhatse <- rep(gamma[1],l)
-for (i in 2:l){
-  xhat[i] <- t(a[[i-1]])%*%x[(i-1):1]
-  xhatse[i] <- sqrt(gamma[1]-t(a[[i-1]])%*%gamma[2:i])
+yhat <-rep(0,ls)
+yhatse <- rep(gamma[1],ls)
+for (i in 2:ls){
+  yhat[i] <- t(a[[i-1]])%*%ddlx[(i-1):1]
+  yhatse[i] <- sqrt(gamma[1]-t(a[[i-1]])%*%gamma[2:i])
 }
 ```
 
-```{r onestepplot,fig.cap="One-step ahead predictions\\label{fig:onestep}",echo=FALSE}
-plot(x,col=2,type="l",xlim=c(1,100),main="",ylab=TeX("X_t,\\hat{X}_t,Z_t"),xlab="Time")
+```{r onestepploty,fig.cap="One-step ahead predictions of the transformed data in blue with standard errors in gray\\label{fig:onestepy}",echo=FALSE}
+plot(ddlx,col=2,type="l",xlim=c(1,100),main="",ylab=TeX("Y_t,\\hat{Y}_t"),xlab="Time")
+lines(yhat,col=4)
+U <- yhat+yhatse
+L <- yhat-yhatse
+xx = c(time(U), rev(time(U))); yy = c(L, rev(U))
+polygon(xx, yy, border = 8, col = gray(.6, alpha = .2))
+```
+
+The one-step ahead predictions for the model can then be found simply by transforming the data back.
+First we reverse the differencing, by considering the first 13 data points as initial conditions and using the following equation.
+
+\begin{align}
+X_t =& Y_t + \gamma_1 X_{t-1} + \dots + \gamma_{p_{\gamma}} X_{t-p_{\gamma}} \\
+=& Y_t + X_{t-1} + X_{t-12} - X_{t-13}
+\end{align}
+
+By inserting $\hat{Y_t}$ into the equations above, we get $\hat{X_t}$ which is the one step prediction for the logged data. 
+The one step prediction for the real data is then found by exponentiation.
+This will of course change the standard error.
+In figure \ref{fig:onestepx} the onestep prediction for the ARIMA(0,1,1)\texttimes$(0,1,1)_{12}$ model is plotted in blue, with the observed data in red.
+The gray outlines are the transformed standard errors for the logged data, not the \textit{real} standard errors.
+```{r onestepx}
+lxhat <- rep(0,13)
+for (i in 14:l){
+  lxhat <- c(lxhat, yhat[i-13]+ lx[i-1]+lx[i-12]-lx[i-13])
+}
+lxhatse <- c(rep(0,13),yhatse)
+xhat <- exp(lxhat)
+```
+
+```{r onestepplotx,fig.cap="One-step ahead predictions from the ARIMA model in blue with standard errors (transformed from the logged data) in gray.\\label{fig:onestepx}",echo=FALSE}
+plot(x,col=2,type="l",xlim=c(1,144),main="",ylab=TeX("X_t,\\hat{X}_t"),xlab="Time")
 lines(xhat,col=4)
-U <- xhat+xhatse
-L <- xhat-xhatse
+U <- exp(lxhat + lxhatse)
+L <- exp(lxhat - lxhatse)
 xx = c(time(U), rev(time(U))); yy = c(L, rev(U))
 polygon(xx, yy, border = 8, col = gray(.6, alpha = .2))
 ```
 
-
-In figure \ref{fig:onestep} we plot the process \(X_t\) in red along with the one-step ahead predictions \(\hat{X_t}\) in blue and the corresponding standard error in gray. The prediction tends to be slightly closer to the x-axis than the process itself, especially for the more extreme values. Intuitively this makes sense since the process' extreme values occur around extreme values for the underlying white noise, which the prediction expects to be zero. 
-
-``` {r forecasting,fig.cap="Forecasted values of the series\\label{fig:forecast}",echo=FALSE}
-fore <- predict(arima,20)
-ts.plot(c(x,fore$pred),col=1:2,xlim=c(420,520),ylab=TeX("X_t"))
-U <- fore$pred+fore$se
-L <- fore$pred-fore$se
-xx = c(time(U), rev(time(U))); yy = c(L, rev(U))
-polygon(xx, yy, border = 8, col = gray(.6, alpha = .2))
-lines(fore$pred, type="p", col=2)
+```{r sarimaresiduals,echo=FALSE,fig.cap="\\label{fig:sarimares}Plot of the residuals"}
+plot(sarima$residuals[14:144],type="p",ylab="Residuals")
 ```
 
-Using the same linear predictor as above, we can forecast the next 20 values of \(X_t\) given \(X_1,\hdots,X_500\). This is done in figure \ref{fig:forecast}. As is to be expected, the forecast seems to gradually approach the series mean of zero with an expected error that approaches \(\sigma_X=\sqrt{\gamma(0)}\approx `r sprintf('%.3f',sqrt(gamma[1]))`\).
+```{r sarimaresqq,echo=FALSE,fig.cap="\\label{fig:sarimaresqq}Q-Q plot of the standardized residuals"}
+qqnorm(sarima$residuals[14:144]/sd(sarima$residuals[14:144]),main="")
+qqline(sarima$residuals[14:144]/sd(sarima$residuals[14:144]),col=2)
+```
+
+\noindent Based on the residual diagnostics in figurs \ref{fig:sarimares} and \ref{fig:sarimaresqq} the model seems to fit well.
+The standardized residuals seem uncorrelated and correspond closely with the standard normal distribution. 
 
 # Discussion
 
