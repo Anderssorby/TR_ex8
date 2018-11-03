@@ -129,6 +129,7 @@ x <- x[,1]
 l <- length(x)
 ```
 
+
 # Data analysis
 
 ```{r TSMplot, echo=FALSE, fig.cap="\\label{fig:timeseries} The data set AirPassengers, showing monthly totals of international airline passengers."}
@@ -428,6 +429,8 @@ qqline(sarima$residuals[14:144]/sd(sarima$residuals[14:144]),col=2)
 The standardized residuals seem uncorrelated and correspond closely with the standard normal distribution. 
 
 # Discussion
+
+The State Space model is a more general model than SARIMA so it would possibly be able to incorporate more interesting features. However the SARIMA is performing much better than the State Space and is much easier to analyze. 
 
 
 ```{r modelchoice, echo=FALSE,eval=FALSE}
