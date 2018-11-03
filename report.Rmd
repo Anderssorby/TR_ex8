@@ -56,7 +56,6 @@ where $\phi(z)= 1-\phi_1 z-\ldots- \phi_p z^p$, $\Phi(z) = 1- \Phi_1 z - \ldots 
 
 For causality for $Y_t$ to hold we need that $\phi(z)\neq 0$ and $\Phi(z)\neq 0$ for $|z| \leq 1$. The SARIMA allows for randomness in the seasonal pattern and is therefore more practical in applications than classical decomposition models. 
 
-
 # Theory
 
 ##Forecasting SARIMA Processes
@@ -86,7 +85,7 @@ The prediction mean squared error is given by
 
 ## Model parameter estimation and uncertainty
 
-For the state space model we can assume that the initial state, ${X}_1$, observation $Y_0$, and the noice vectors $W_t$ and $V_t$ are jointly Gaussian. This simplifies paramter estimation greatly. We are going to need the Kalman prediction for state space models to estimate parameters and do prediction. For state space models the best linear predictors $\hat{X}_t:=\hat{E}[X_t|Y_{t-1},\ldots, Y_0]$ and correspnding error covariance matricies $\Omega_t:=E[({X}_t-\hat{{X}}_t)(X_t-\hat{{X}}_t)^T]$ are uniquely determined by the initial conditions $\hat{{X}}_1$ and $\Omega_1$ and the Kalman recursions 
+For the state space model we can assume that the initial state, ${X}_1$, observation $Y_0$, and the noice vectors $W_t$ and $V_t$ are jointly Gaussian. This simplifies paramter estimation greatly. We are going to need the Kalman prediction for state space models to estimate parameters and do prediction. For state space models the best linear predictors $\hat{X}_t:=\hat{E}[X_t|Y_{t-1},\ldots, Y_0]$ and corresponding error covariance matrices $\Omega_t:=E[({X}_t-\hat{{X}}_t)(X_t-\hat{{X}}_t)^T]$ are uniquely determined by the initial conditions $\hat{{X}}_1$ and $\Omega_1$ and the Kalman recursions 
 $$
 \hat{X}_{t+1} = F_{t} \hat{X}_t + \Theta_t \Delta_t^{-1}(Y_t-G_t \hat{X}_t),
 $$
@@ -96,17 +95,21 @@ $$
 \noindent where $\Delta_t=G_t\Omega_tG_t^T + R_t$ and $\Theta_t=F_t\Omega_tG_t^T$. This gives us a way to estimate the state given some observations which we will use in the maximum likelihood. 
 
 
-We can now define an explicit conditional density
+\noindent We can now define an explicit conditional density
 \begin{equation}
 f_t({Y}_t | {Y}_{t-1}, \ldots,{Y}_0) = (2\pi)^{-w/2}(det\Delta_t)^{-1/2}\exp\left(-\frac{1}{2}I_t^T\Delta^{-1}I_t\right),
 \end{equation}
-and a likelihood function
+\noindent and a likelihood function
 \begin{equation}
-L(\theta ; Y_{t-1}, \ldots, {Y}_0) =  (2\pi)^{-nw/2} \left(\prod_{j=1}^n\det\Delta_j\right)^{-1/2} \exp\left(-\frac{1}{2} \sum_{j=0}^n I_t^T \Delta_j^{-1} I_t \right).
+L(\theta ; Y_{t-1}, \ldots, {Y}_0) =  (2\pi)^{-nw/2} \left(\prod_{j=1}^n\det\Delta_j\right)^{-1/2} \exp\left(-\frac{1}{2} \sum_{j=0}^n I_t^T \Delta_j^{-1} I_t \right),
 \end{equation}
+\noindent where $I_t$ are the one-step prediction errors from the Kalman Recursions and $\Delta_t$ are their covariances. 
+We can get the ML estimate for $\theta$ by maximizing this function.
 
-
-We can get the ML estimate for $\theta$ by maximizing this function. 
+For structural models, where the matrices $F_t$ and $G_t$ are assumed to be the time-invariant matrices $F$ and $G$, estimation is made easier by assuming that $X_1$ is equal to a deterministic but unknown parameter $\mathbf{\mu}$.
+Then $\hat{X}_1 = \mathbf{\mu}$, which means that $\Omega_1 = 0$.
+The parameters of the model are then $\mathbf{\mu}, Q,$ and $\sigma_w^2$.
+Maximization of the likelihood can then be simplified by instead considering the \textit{reduced likelihood}, that is $L(\hat{\mathbf{\mu}}(Q), Q, \hat{\sigma_w^2}(Q))$.
 
 ##Model choice
 
