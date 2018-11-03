@@ -19,12 +19,14 @@ knitr::opts_chunk$set(echo = TRUE)
 #install.packages("forecast")
 #install.packages("astsa")
 #install.packages("tidyr")
+#install.packages("dse")
 library(forecast)
 library(latex2exp)
 library(itsmr)
 library(astsa)
 library(tidyr)
 library(ggplot2)
+library(dse)
 ```
 \abstract{
 }
@@ -226,6 +228,52 @@ ggplot(gather(ts_sims_param), aes(value)) +
 ```
 
 ## Model prediction
+
+###State space
+We are using the Structural model given by the r function StructTS to fit our data. This was significantly easier than other approaches. 
+
+```{r ssest}
+num <- l
+Y <- x # Less confusing
+G <- t(rep(0,13))
+G[1] <- 1
+G[3] <- 1
+F <- diag(0, ncol = 13, nrow = 13)
+F[1,1] <- F[1,2] <- F[2,2] <- 1
+F[4:13, 3:12] <- diag(1,10)
+F[3,3:13] <- -1
+#initial values
+Sigma0 <- diag(0.04, 13)
+
+xs <- ts(x,frequency=12)
+modSS <- StructTS(xs)
+z0 <- runif(13)
+sigma_w <- 1
+#model <- SS(F=F, H=G, z0=z0, Q=matrix(0,13),R=sigma_w)
+
+SSML <- function(param) {
+  cQ <- matrix(0, 13, 13)
+  
+  cQ[1,1] <- param[1]
+  cQ[2,2] <- param[2]
+  cQ[3,3] <- param[3]
+  
+  cR <- param[4]
+  mu <- param[5:17]
+  
+  kf <- Kfilter0(num, Y, G, mu, Sigma0, F, cQ, cR)
+  return(kf$like)
+}
+mu0 <- c(140, 2, -30, -30, -50, -17, 20, 50, 50, 30, 0, 0, 0)
+init.par <- t(c(170, 0, 11, 0.01, mu0))
+#est <- optim(init.par, SSML, NULL, method = "BFGS", hessian = TRUE, control = list(trace=1, REPORT=1))
+#SE= sqrt(diag(solve(est$hessian)))
+
+modSS
+
+```
+
+### SARIMA
 
 Using the R function `sarima.for` we can forecast the logged data for the next year.
 The result is shown in figure \ref{fig:forecast}
