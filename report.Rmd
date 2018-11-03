@@ -47,7 +47,7 @@ where $V_t \sim WN(0, \{Q_t\})$.
 
 ## The SARIMA process
 
-The seasonal ARIMA (SARIMA) process is a generalization of the ARIMA process can be defined as follows. Given two nonnegative integers $d$, and $D$, $\{X_t\}$ is a seasonal ARIMA$(p,d,q)\times(P,D,Q)_s$ with period $s$ if the differenced series $Y_t = (1-B)^d(1-B^s)^DX_t$ is a causal ARMA process defined by
+The seasonal ARIMA (SARIMA) process is a generalization of the ARIMA process and can be defined as follows. Given two nonnegative integers $d$, and $D$, $\{X_t\}$ is a seasonal ARIMA$(p,d,q)\times(P,D,Q)_s$ with period $s$ if the differenced series $Y_t = (1-B)^d(1-B^s)^DX_t$ is a causal ARMA process defined by
 \begin{equation}
 \label{eq:SARIMA}
 \phi(B)\Phi(B^s)Y_t = \theta(B)\Theta(B^s)Z_t,\hspace{5em} \{Z_t\}\sim WN(0,\sigma^2)
@@ -58,6 +58,31 @@ For causality for $Y_t$ to hold we need that $\phi(z)\neq 0$ and $\Phi(z)\neq 0$
 
 
 # Theory
+
+##Forecasting SARIMA Processes
+
+Prediction for SARIMA processes can be done by applying $P_n$ to both sides of the equation
+
+\begin{equation}
+(1-B)^d(1-B)^D X_t = \gamma(B) X_t = Y_t.
+\end{equation}
+
+\noindent The ARMA process $Y_t$ can then be predicted in the same way as previously.
+If we consider the first $d+Ds$ observations of $X_t$ to be intial conditions that are uncorrelated with $\{Y_t, t\geq 1\}$ we immediately get
+
+\begin{equation}
+\label{eq:SARIMAfor}
+P_n X_{n+h} = P_n Y_{n+h} + \sum_{j=1}^{d+Ds}\gamma_j P_n X_{n+h-j}.
+\end{equation}
+
+\noindent The predictors $P_n X_{n+h}$ can then be computed recursively for $h=1,2,\dots$, since $P_n X_{n+1-j} = X_{n+1-j}$ by definition.
+The prediction mean squared error is given by
+
+\begin{equation}
+\E(X_{n+h}- P_n X_{n+h})^2 = \sum_{j=0}^{h-1}\left(\sum_{r=0}^j \chi_r \theta_{n+h-r-1,j-r} \right)^2 v_{n+h-j-1},
+\end{equation}
+
+\noindent where $\theta_{nj}$ and $v_n$ are from the innovations algorithm applied on the differenced series $\{Y_t\}$.
 
 ## Model parameter estimation and uncertainty
 
@@ -71,7 +96,7 @@ $$
 \noindent where $\Delta_t=G_t\Omega_tG_t^T + R_t$ and $\Theta_t=F_t\Omega_tG_t^T$. This gives us a way to estimate the state given some observations which we will use in the maximum likelihood. 
 
 
-We can now define an exlpicit conditional density
+We can now define an explicit conditional density
 \begin{equation}
 f_t({Y}_t | {Y}_{t-1}, \ldots,{Y}_0) = (2\pi)^{-w/2}(det\Delta_t)^{-1/2}\exp\left(-\frac{1}{2}I_t^T\Delta^{-1}I_t\right),
 \end{equation}
@@ -157,7 +182,7 @@ Using the R function `arima` gives
 ```{r sarima1}
 ordr <- c(1,1,1)
 seasonal <- list(order= c(0,1,1), period = 12)
-sarima1 <- arima(lx,,order=ordr, seasonal=seasonal)
+sarima1 <- arima(lx,order=ordr, seasonal=seasonal)
 sarima1
 ```
 
@@ -227,43 +252,7 @@ ggplot(gather(ts_sims_param), aes(value)) +
 
 ## Model prediction
 
-Using the R function `sarima.for` we can forecast the logged data for the next year.
-The result is shown in figure \ref{fig:forecast}
-
-```{r forecast, fig.cap="\\label{fig:forecast} The forecasted values of the logged air passenger data for the next twelve months in red, with standard errors in grey"}
-forecast <- sarima.for(slx,12,0,1,1,0,1,1,12)
-```
-
-Since the process $Y_t$ from equation \eqref{eq:SARIMA} is a weakly stationary ARMA process, we can create its best linear predictors as we did previously.
-That is 
-
-\begin{equation}
-P_n Y_{n+h} = \sum_{i=1}^n a_i Y_{n+h-i}
-\end{equation}
-
-\noindent where $a_i$ is such that
-
-\begin{equation}
-\Gamma_n \bm{a}_n = \gamma_n(h)
-\end{equation}
-<!--
-\noindent where 
-\begin{equation}
-\gamma_n = (\gamma(h),\gamma(h+1),\hdots,\gamma(h+n-1))',
-\end{equation}
-
-\noindent and
-\begin{equation}
-\Gamma_n = [\Cov(Y_i,Y_j)]_{i,j=1}^n.
-\end{equation}
--->
-\noindent As before, the expected prediction error is zero, and the expected mean square prediction error is given by
-
-\begin{equation}
-\E[(Y_{n+h}-P_nY_{n+h})^2] = \gamma(0) - \bm{a}'\gamma_n(h).
-\end{equation}
-
-In figure \ref{fig:onestepy} we plot the process \(Y_t\) in red along with the one-step ahead predictions \(\hat{Y_t}\) in blue and the corresponding standard error in gray. 
+In figure \ref{fig:onestepy} we plot the transformed and differenced process \(Y_t\) in red along with its one-step ahead predictions \(\hat{Y_t}\) in blue and the corresponding standard error in gray. 
 
 ```{r onestep, echo=FALSE}
 arma_y <- arima(ddlx,order = c(0,0,13),fixed=c(sarima$coef[1],0,0,0,0,0,0,0,0,0,0,sarima$coef[2],sarima$coef[1]*sarima$coef[2],0))
@@ -299,12 +288,12 @@ xx = c(time(U), rev(time(U))); yy = c(L, rev(U))
 polygon(xx, yy, border = 8, col = gray(.6, alpha = .2))
 ```
 
-The one-step ahead predictions for the model can then be found simply by transforming the data back.
-First we reverse the differencing, by considering the first 13 data points as initial conditions and using the following equation.
+The one-step ahead predictions for the model can then be found using equation \eqref{eq:SARIMAfor}.
+Note that in our case
 
 \begin{align}
 X_t =& Y_t + \gamma_1 X_{t-1} + \dots + \gamma_{p_{\gamma}} X_{t-p_{\gamma}} \\
-=& Y_t + X_{t-1} + X_{t-12} - X_{t-13}
+=& Y_t + X_{t-1} + X_{t-12} - X_{t-13}.
 \end{align}
 
 By inserting $\hat{Y_t}$ into the equations above, we get $\hat{X_t}$ which is the one step prediction for the logged data. 
@@ -312,7 +301,7 @@ The one step prediction for the real data is then found by exponentiation.
 This will of course change the standard error.
 In figure \ref{fig:onestepx} the onestep prediction for the ARIMA(0,1,1)\texttimes$(0,1,1)_{12}$ model is plotted in blue, with the observed data in red.
 The gray outlines are the transformed standard errors for the logged data, not the \textit{real} standard errors.
-```{r onestepx}
+```{r onestepx,include=FALSE}
 lxhat <- rep(0,13)
 for (i in 14:l){
   lxhat <- c(lxhat, yhat[i-13]+ lx[i-1]+lx[i-12]-lx[i-13])
@@ -329,6 +318,14 @@ L <- exp(lxhat - lxhatse)
 xx = c(time(U), rev(time(U))); yy = c(L, rev(U))
 polygon(xx, yy, border = 8, col = gray(.6, alpha = .2))
 ```
+
+```{r forecast, fig.cap="\\label{fig:forecast} The forecasted values of the logged air passenger data for the next twelve months in red, with standard errors in grey"}
+forecast <- sarima.for(slx,12,0,1,1,0,1,1,12)
+```
+
+Using the R function `sarima.for` we can forecast the logged data for the next year.
+The result is shown in figure \ref{fig:forecast}
+
 
 ```{r sarimaresiduals,echo=FALSE,fig.cap="\\label{fig:sarimares}Plot of the residuals"}
 plot(sarima$residuals[14:144],type="p",ylab="Residuals")
