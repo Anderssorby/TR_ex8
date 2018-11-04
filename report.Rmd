@@ -98,7 +98,7 @@ $$
 $$
 \Omega_{t+1} = F_t \Omega_t F_t^T + Q_t-\Theta_t\Delta_t^{-1}\Theta_t^T
 $$
-\noindent where $\Delta_t=G_t\Omega_tG_t^T + R_t$ and $\Theta_t=F_t\Omega_tG_t^T$. This gives us a way to estimate the state given some observations which we will use in the maximum likelihood. 
+\noindent where $\Delta_t=G_t\Omega_tG_t^T + R_t$ and $\Theta_t=F_t\Omega_tG_t^T$. This gives us a way to estimate the state given some observations which we will use in the maximum likelihood.  
 
 
 \noindent We can now define an explicit conditional density
@@ -167,7 +167,8 @@ Q=
   \end{bmatrix}
 \]
 
-The state vector $X_t$ is a 13-dimensional and the matricies have the dimension suitable for this form. This means that the there are in total 5 parameters that we need to estimate namely $\sigma_1^2$, $\sigma_2^2$, $\sigma_3^2$, $\sigma_w^2 = W_t$ and $\mu=X_1$. 
+The state vector $X_t$ is a 13-dimensional and the matricies have the dimension suitable for this form. This means that the there are in total 5 parameters that we need to estimate namely $\sigma_1^2$, $\sigma_2^2$, $\sigma_3^2$, $\sigma_w^2 = W_t$ and $\mu=X_1$. We will use maximum likelihood to estimate this. 
+
 
 # Data analysis
 
@@ -245,9 +246,11 @@ ord <- c(0,1,1)
 seas <- list(order=c(0,1,1),period=12)
 sarima <- arima(slx,order=ord,seasonal=seas)
 ```
+
 ```{r sarima2, echo=FALSE}
 sarima
 ```
+
 Hence the best estimates for $p, d, q, P, D$ and $Q$, assuming $s=12$, results in an ARIMA(0,1,1)\texttimes$(0,1,1)_{12}$ model with coefficients as in the output above.
 By simulating from an ARIMA(0,1,1)\texttimes$(0,1,1)_{12}$ model with these coefficients we can get an empirical estimation of their distributions.
 This also allows us to estimate the uncertainty of $\sigma^2$, which is not given by the printout above.
@@ -299,7 +302,7 @@ ggplot(gather(ts_sims_param), aes(value)) +
 
 ###State space
 
-We are using the Structural model given by the r function StructTS to fit our data. This was significantly easier than other approaches. It is important to choose good initial values for the method to acually find a good fit for the model.
+We are using the Basic Structural model, as presented earlier, given by the r function StructTS to fit our data. This was significantly easier than other approaches. It is important to choose good initial values for the method to acually find a good fit for the model.
 
 <!--
 ```{r ssest}
@@ -352,7 +355,7 @@ fit2.comps <- tsSmooth(fit2, P0cov = FALSE)$states
 plot(fit2.comps, main = "")
 ```
 
-We can see the model fit in figure \ref{fig:structfit} which seems to be not so good. There seems to be a dependency
+We can see the model fit in figure \ref{fig:structfit}. There seems to be a dependency
 
 ```{r predictionbsm,echo=FALSE}
 require("KFKSDS")
@@ -450,7 +453,7 @@ for (i in 2:ls){
 }
 ```
 
-```{r onestepploty,fig.cap="One-step ahead predictions of the transformed data in blue with standard errors in gray\\label{fig:onestepy}",echo=FALSE}
+```{r onestepploty, fig.cap="One-step ahead predictions of the transformed data in blue with standard errors in gray\\label{fig:onestepy}", echo=FALSE}
 plot(ddlx,col=2,type="l",xlim=c(1,100),main="",ylab=TeX("Y_t,\\hat{Y}_t"),xlab="Time")
 lines(yhat,col=4)
 U <- yhat+yhatse
