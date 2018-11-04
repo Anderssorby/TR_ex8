@@ -340,14 +340,14 @@ init.par <- t(c(170, 0, 11, 0.01, mu0))
 #SE= sqrt(diag(solve(est$hessian)))
 ```
 -->
-```{r tsstruct}
+```{r tsstruct,echo=FALSE}
 xs <- ts(log(x),frequency=12)
 fit1 <- StructTS(xs, type = "BSM")
-fit1
-
+fit1$coef
+fit1$model$a
 ```
 
-```{r stsm,warning=FALSE}
+```{r stsm,warning=FALSE,echo=FALSE}
 m <- stsm.model(model = "BSM", y = xs, transPars = "StructTS")
 fit2 <- stsmFit(m, stsm.method = "maxlik.td.optim", method = "L-BFGS-B", 
   KF.args = list(P0cov = TRUE))
@@ -355,9 +355,16 @@ fit2.comps <- tsSmooth(fit2, P0cov = FALSE)$states
 plot(fit2.comps, main = "")
 ```
 
-We can see the model fit in figure \ref{fig:structfit}. There seems to be a dependency
 
-```{r predictionbsm,echo=FALSE}
+```{r predictionbsm,echo=FALSE,fig.cap="\\label{onestepss} The logged data in red along with its one-step predictions according to the state space model."}
+fitted <- fitted(fit1)
+yhatss <- fitted[,1]+fitted[,3]
+plot(seq(1:144),xs,type="l",col="red",ylab=TeX("Y_t,\\hat{Y}_t"),xlab="Time")
+lines(seq(1:144),c(yhatss[1],yhatss[1:143]),col="blue")
+```
+
+
+```{r forecastbsm,echo=FALSE}
 require("KFKSDS")
 m2 <- set.pars(m, pmax(fit2$par, .Machine$double.eps))
 ss <- char2numeric(m2)
@@ -387,12 +394,16 @@ lines(pred$a[,3], col = "blue", lwd = 1.5)
 mtext(text = "forecasts of the seasonal component", side = 3, adj = 0)
 ```
 
+<<<<<<< Updated upstream
 ```{r plotSS, fig.cap="\\label{fig:structfit} Residuals of the structural model"}
 tsdiag(fit1)
 ```
-```{r plotSS2, fig.cap="\\label{fig:structfit2} "}
-plot(tsSmooth(fit1))
+
+```{r plotSS2, echi=FALSE, fig.cap="\\label{fig:structfit2} Fitted values for the state, according to the structural model"}
+plot(tsSmooth(fit2))
 ```
+
+We can see the model fit in figure \ref{fig:structfit} which seems to be not so good. There seems to be a dependency
 
 ### SARIMA
 
@@ -453,7 +464,8 @@ for (i in 2:ls){
 }
 ```
 
-```{r onestepploty, fig.cap="One-step ahead predictions of the transformed data in blue with standard errors in gray\\label{fig:onestepy}", echo=FALSE}
+
+```{r onestepploty,fig.cap="One-step ahead predictions of the SARIMA models' transformed data in blue with standard errors in gray\\label{fig:onestepy}",echo=FALSE}
 plot(ddlx,col=2,type="l",xlim=c(1,100),main="",ylab=TeX("Y_t,\\hat{Y}_t"),xlab="Time")
 lines(yhat,col=4)
 U <- yhat+yhatse
@@ -484,7 +496,7 @@ lxhatse <- c(rep(0,13),yhatse)
 xhat <- exp(lxhat)
 ```
 
-```{r onestepplotx,fig.cap="One-step ahead predictions from the ARIMA model in blue with standard errors (transformed from the logged data) in gray.\\label{fig:onestepx}",echo=FALSE}
+```{r onestepplotx,fig.cap="One-step ahead predictions from the SARIMA model in blue with standard errors (transformed from the logged data) in gray.\\label{fig:onestepx}",echo=FALSE}
 plot(x,col=2,type="l",xlim=c(1,144),main="",ylab=TeX("X_t,\\hat{X}_t"),xlab="Time")
 lines(xhat,col=4)
 U <- exp(lxhat + lxhatse)
@@ -493,7 +505,7 @@ xx = c(time(U), rev(time(U))); yy = c(L, rev(U))
 polygon(xx, yy, border = 8, col = gray(.6, alpha = .2))
 ```
 
-```{r forecast2, fig.cap="\\label{fig:forecast} The forecasted values of the logged air passenger data for the next twelve months in red, with standard errors in grey"}
+```{r forecast2, fig.cap="\\label{fig:forecast} The SARIMA models' forecasted values of the logged air passenger data for the next twelve months in red, with standard errors in grey"}
 forecast <- sarima.for(slx,12,0,1,1,0,1,1,12)
 ```
 
@@ -501,11 +513,11 @@ Using the R function `sarima.for` we can forecast the logged data for the next y
 The result is shown in figure \ref{fig:forecast}
 
 
-```{r sarimaresiduals,echo=FALSE,fig.cap="\\label{fig:sarimares}Plot of the residuals"}
+```{r sarimaresiduals,echo=FALSE,fig.cap="\\label{fig:sarimares}Plot of the SARIMA models' residuals"}
 plot(sarima$residuals[14:144],type="p",ylab="Residuals")
 ```
 
-```{r sarimaresqq,echo=FALSE,fig.cap="\\label{fig:sarimaresqq}Q-Q plot of the standardized residuals"}
+```{r sarimaresqq,echo=FALSE,fig.cap="\\label{fig:sarimaresqq}Q-Q plot of the SARIMA models' standardized residuals"}
 qqnorm(sarima$residuals[14:144]/sd(sarima$residuals[14:144]),main="")
 qqline(sarima$residuals[14:144]/sd(sarima$residuals[14:144]),col=2)
 ```
