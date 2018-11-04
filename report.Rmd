@@ -20,6 +20,8 @@ knitr::opts_chunk$set(echo = TRUE)
 #install.packages("astsa")
 #install.packages("tidyr")
 #install.packages("dse")
+#install.packages("stsm")
+#install.packages("KFKSDS")
 library(forecast)
 library(latex2exp)
 library(itsmr)
@@ -27,6 +29,8 @@ library(astsa)
 library(tidyr)
 library(ggplot2)
 library(dse)
+library(stsm)
+library(KFKSDS)
 ```
 \abstract{
 }
@@ -261,6 +265,7 @@ ggplot(gather(ts_sims_param), aes(value)) +
 ###State space
 
 We are using the Structural model given by the r function StructTS to fit our data. This was significantly easier than other approaches. It is important to choose good initial values for the method to acually find a good fit for the model.
+
 <!--
 ```{r ssest}
 num <- l
@@ -299,12 +304,51 @@ init.par <- t(c(170, 0, 11, 0.01, mu0))
 -->
 ```{r tsstruct}
 xs <- ts(log(x),frequency=12)
-modSS <- StructTS(xs, type = "BSM", init = c(170, 0, 11, 0.01))
-modSS
+fit1 <- StructTS(xs, type = "BSM")
+fit1
 
 ```
 
+```{r stsm,warning=FALSE}
+m <- stsm.model(model = "BSM", y = xs, transPars = "StructTS")
+fit2 <- stsmFit(m, stsm.method = "maxlik.td.optim", method = "L-BFGS-B", 
+  KF.args = list(P0cov = TRUE))
+fit2.comps <- tsSmooth(fit2, P0cov = FALSE)$states
+plot(fit2.comps, main = "")
+```
+
 We can see the model fit in figure \ref{fig:structfit} which seems to be not so good. There seems to be a dependency
+
+```{r predictionbsm,echo=FALSE}
+require("KFKSDS")
+m2 <- set.pars(m, pmax(fit2$par, .Machine$double.eps))
+ss <- char2numeric(m2)
+pred <- predict(ss, xs, n.ahead = 12)
+
+par(mfrow = c(3,1), mar = c(3,3,3,3))
+# observed series
+plot(cbind(xs, pred$pred), type = "n", plot.type = "single", ylab = "") #, ylim = c(8283372, 19365461))
+lines(xs)
+polygon(c(time(pred$pred), rev(time(pred$pred))), c(pred$pred + 2 * pred$se, rev(pred$pred)), col = "gray85", border = NA)
+polygon(c(time(pred$pred), rev(time(pred$pred))), c(pred$pred - 2 * pred$se, rev(pred$pred)), col = " gray85", border = NA)
+lines(pred$pred, col = "blue", lwd = 1.5)
+mtext(text = "forecasts of the observed series", side = 3, adj = 0)
+# level component
+plot(cbind(xs, pred$a[,1]), type = "n", plot.type = "single", ylab = "") #, ylim = c(8283372, 19365461)) 
+lines(xs)
+polygon(c(time(pred$a[,1]), rev(time(pred$a[,1]))), c(pred$a[,1] + 2 * sqrt(pred$P[,1]), rev(pred$a[,1])), col = "gray85", border = NA)
+polygon(c(time(pred$a[,1]), rev(time(pred$a[,1]))), c(pred$a[,1] - 2 * sqrt(pred$P[,1]), rev(pred$a[,1])), col = " gray85", border = NA)
+lines(pred$a[,1], col = "blue", lwd = 1.5)
+mtext(text = "forecasts of the level component", side = 3, adj = 0)
+# seasonal component
+plot(cbind(fit2.comps[,3], pred$a[,3]), type = "n", plot.type = "single", ylab = "") #, ylim = c(-3889253, 3801590))
+lines(fit2.comps[,3])
+polygon(c(time(pred$a[,3]), rev(time(pred$a[,3]))), c(pred$a[,3] + 2 * sqrt(pred$P[,3]), rev(pred$a[,3])), col = "gray85", border = NA)
+polygon(c(time(pred$a[,3]), rev(time(pred$a[,3]))), c(pred$a[,3] - 2 * sqrt(pred$P[,3]), rev(pred$a[,3])), col = " gray85", border = NA)
+lines(pred$a[,3], col = "blue", lwd = 1.5)
+mtext(text = "forecasts of the seasonal component", side = 3, adj = 0)
+```
+
 ```{r plotSS, fig.cap="\\label{fig:structfit} Residuals of the structural model"}
 tsdiag(modSS)
 ```
@@ -313,13 +357,6 @@ plot(tsSmooth(modSS))
 ```
 
 ### SARIMA
-
-Using the R function `sarima.for` we can forecast the logged data for the next year.
-The result is shown in figure \ref{fig:forecast}
-
-```{r forecast, fig.cap="\\label{fig:forecast} The forecasted values of the logged air passenger data for the next twelve months in red, with standard errors in grey"}
-forecast <- sarima.for(slx,12,0,1,1,0,1,1,12)
-```
 
 Since the process $Y_t$ from equation \eqref{eq:SARIMA} is a weakly stationary ARMA process, we can create its best linear predictors as we did previously.
 That is 
