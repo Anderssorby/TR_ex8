@@ -254,6 +254,7 @@ sarima
 Hence the best estimates for $p, d, q, P, D$ and $Q$, assuming $s=12$, results in an ARIMA(0,1,1)\texttimes$(0,1,1)_{12}$ model with coefficients as in the output above.
 By simulating from an ARIMA(0,1,1)\texttimes$(0,1,1)_{12}$ model with these coefficients we can get an empirical estimation of their distributions.
 This also allows us to estimate the uncertainty of $\sigma^2$, which is not given by the printout above.
+A plot of the parameters' distributions is included in the appendix, while their means and variances are in the output below.
 
 ```{r simulations, eval=FALSE,include=FALSE}
 n_sim <- 500
@@ -290,12 +291,6 @@ print(covariance_param)
 
 print("parameter sample variance")
 print(sqrt(diag(covariance_param)))
-```
-
-```{r simulationshist, echo = FALSE, fig.cap="\\label{fig:arimasimparam} Estimated coefficients from 500 realizations of the ARIMA(0,1,1)\\texttimes$(0,1,1)_{12}$ process, given the estimated coefficients from the original series."}
-ggplot(gather(ts_sims_param), aes(value)) + 
-    geom_histogram(bins = 10,col = "black",fill = "cyan3") + 
-    facet_wrap(~key, scales = 'free_x')
 ```
 
 ## Model prediction
@@ -433,9 +428,8 @@ m <- stsm.model(model = "BSM", y = xs, transPars = "StructTS")
 fit2 <- stsmFit(m, stsm.method = "maxlik.td.optim", method = "L-BFGS-B", 
   KF.args = list(P0cov = TRUE))
 fit2.comps <- tsSmooth(fit2, P0cov = FALSE)$states
-plot(fit2.comps, main = "")
+#plot(fit2.comps, main = "")
 ```
-
 
 ```{r predictionbsm,echo=FALSE,fig.cap="\\label{onestepss} The logged data in red along with its one-step predictions according to the state space model."}
 fitted <- fitted(fit1)
@@ -476,17 +470,15 @@ mtext(text = "forecasts of the seasonal component", side = 3, adj = 0)
 ```
 
 
-```{r plotSS, echo= FALSE, fig.cap="\\label{fig:structfit} Residuals of the structural model"}
-tsdiag(fit1)
-```
-
 ```{r plotSS2, echo=FALSE, fig.cap="\\label{fig:structfit2} Fitted values for the state, according to the structural model"}
 plot(tsSmooth(fit1),main="")
 ```
 
+Some diagnostic plots for the model is included in the appendix.
 We can see the model fit in figure \ref{fig:structfit} which seems to be not so good. 
 The residuals seem to have some seasonality.
 In fact we are forced to reject the hypothesis that they are independent, based on the Ljung-Box statistic.
+All-in-all the model does not fit the data very well.
 
 ### SARIMA
 
@@ -595,17 +587,7 @@ forecast <- sarima.for(slx,12,0,1,1,0,1,1,12)
 Using the R function `sarima.for` we can forecast the logged data for the next year.
 The result is shown in figure \ref{fig:forecast}
 
-
-```{r sarimaresiduals,echo=FALSE,fig.cap="\\label{fig:sarimares}Plot of the SARIMA models' residuals"}
-plot(sarima$residuals[14:144],type="p",ylab="Residuals")
-```
-
-```{r sarimaresqq,echo=FALSE,fig.cap="\\label{fig:sarimaresqq}Q-Q plot of the SARIMA models' standardized residuals"}
-qqnorm(sarima$residuals[14:144]/sd(sarima$residuals[14:144]),main="")
-qqline(sarima$residuals[14:144]/sd(sarima$residuals[14:144]),col=2)
-```
-
-\noindent Based on the residual diagnostics in figurs \ref{fig:sarimares} and \ref{fig:sarimaresqq} the model seems to fit well.
+\noindent Based on the residual diagnostics in figures \ref{fig:sarimares} and \ref{fig:sarimaresqq}, which can be found in the appendix, the model seems to fit well.
 The standardized residuals seem uncorrelated and correspond closely with the standard normal distribution. 
 
 # Discussion
@@ -631,8 +613,27 @@ Without such insights one might as well choose a simpler model, such as the SARI
 
 Some additional plots
 
-```{r appendix,eval=TRUE,echo=FALSE}
+```{r appendix,eval=TRUE,echo=FALSE,fig.cap="One simulated series based on the state space model"}
 plot(sim$Y[1,], type = "l", main="Simulated data")
+```
+
+```{r plotSS, echo= FALSE, fig.cap="\\label{fig:structfit} Residuals of the structural model"}
+tsdiag(fit1)
+```
+
+```{r simulationshist, echo = FALSE, fig.cap="\\label{fig:arimasimparam} Estimated coefficients from 500 realizations of the ARIMA(0,1,1)\\texttimes$(0,1,1)_{12}$ process, given the estimated coefficients from the original series."}
+ggplot(gather(ts_sims_param), aes(value)) + 
+    geom_histogram(bins = 10,col = "black",fill = "cyan3") + 
+    facet_wrap(~key, scales = 'free_x')
+```
+
+```{r sarimaresiduals,echo=FALSE,fig.cap="\\label{fig:sarimares}Plot of the SARIMA models' residuals"}
+plot(sarima$residuals[14:144],type="p",ylab="Residuals")
+```
+
+```{r sarimaresqq,echo=FALSE,fig.cap="\\label{fig:sarimaresqq}Q-Q plot of the SARIMA models' standardized residuals"}
+qqnorm(sarima$residuals[14:144]/sd(sarima$residuals[14:144]),main="")
+qqline(sarima$residuals[14:144]/sd(sarima$residuals[14:144]),col=2)
 ```
 
 What follows is a complete copy of the computer code used by R markdown to produce the report.
