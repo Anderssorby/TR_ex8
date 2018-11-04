@@ -459,7 +459,9 @@ tsdiag(fit1)
 plot(tsSmooth(fit1),main="")
 ```
 
-We can see the model fit in figure \ref{fig:structfit} which seems to be not so good. The residuals seem to have some seasonality, which is confirmed to be significant by the Ljung-Box statistic.
+We can see the model fit in figure \ref{fig:structfit} which seems to be not so good. 
+The residuals seem to have some seasonality.
+In fact we are forced to reject the hypothesis that they are independent, based on the Ljung-Box statistic.
 
 ### SARIMA
 
@@ -585,9 +587,7 @@ The standardized residuals seem uncorrelated and correspond closely with the sta
 
 The State Space model is a more general model than SARIMA so it would possibly be able to incorporate more interesting features. However the SARIMA is performing much better than the State Space and is much easier to analyze. 
 
-The BSM required much more fine tuning and tinkering than the SARIMA to get a good fit. It is probably possible to get and even better model for SS by including even more considerations, but this would require much more work. This is because any SARIMA model can be represented as a SS model and is therefore strictly contained in the set of possible SS models. 
-
-
+The BSM required much more fine tuning and tinkering than the SARIMA to get a good fit. It is probably possible to get an even better model for SS by including even more considerations, but this would require much more work. This is because any SARIMA model can be represented as a SS model and is therefore strictly contained in the set of possible SS models. 
 
 
 ```{r modelchoice, echo=FALSE,eval=FALSE}
@@ -597,13 +597,262 @@ af<-autofit(x,p=0:7,q=0:7)
 
 # Conclusion
 
-
+The SARIMA model performs very well, without much information about the mechanisms at work behind the scenes.
+The Basic Structural Model used here fits does not fit the data very well, while the much simpler SARIMA model fits quite well.
+It seems likely that State Space models are useful when one has some ideas about the underlying mechanisms at work.
+Without such insights one might as well choose a simpler model, such as the SARIMA in this case.
 
 # Appendix
 
+Some additional plots
+
+```{r appendix,eval=TRUE,echo=FALSE}
+plot(sim$Y[1,], type = "l", main="Simulated data")
+```
+
 What follows is a complete copy of the computer code used by R markdown to produce the report.
 
-```{r appendix,eval=FALSE,echo=TRUE}
+```{r completercode, eval=FALSE, echo=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+#install.packages("itsmr")
+#install.packages("forecast")
+#install.packages("astsa")
+#install.packages("tidyr")
+#install.packages("dse")
+#install.packages("stsm")
+#install.packages("KFKSDS")
+library(forecast)
+library(latex2exp)
+library(itsmr)
+library(astsa)
+library(tidyr)
+library(ggplot2)
+library(dse)
+library(stsm)
+library(KFKSDS)
+
+x = read.table("airpass.txt")
+x <- x[,1]
+l <- length(x)
+
+plot(seq(1,l),x,type="l", xlab="t", ylab=TeX("X_t"))
+
+lx <- log(x)
+plot(seq(1,l),lx,type="l", xlab="t", ylab=TeX("log X_t"))
+
+dlx<- diff(lx)
+plot(seq(1,l-1),dlx,type="l", xlab="t", ylab=TeX("$\\nabla$ log X_t"))
+
+Acf(dlx,main="")
+
+ddlx <- diff(dlx,12)
+plot(seq(1,l-13),ddlx,type="l", xlab="t", ylab=TeX("$\\nabla_{12} \\nabla$ log X_t"))
+
+test <- acf2(ddlx,50,main="")
+
+ordr <- c(1,1,1)
+seasonal <- list(order= c(0,1,1), period = 12)
+sarima1 <- arima(lx,order=ordr, seasonal=seasonal)
+sarima1
+
+slx <- ts(lx,frequency=12,start=c(1949,1))
+auto.arima(slx,d = NA, D = NA, max.p=4, max.q=4, max.P=2, max.Q=2,
+                     max.order=20, max.d=2, max.D=1, start.p=1, start.q=1,
+                     start.P=1, start.Q=1, stationary=FALSE, seasonal=TRUE,
+                     trace=TRUE)
+ord <- c(0,1,1)
+seas <- list(order=c(0,1,1),period=12)
+sarima <- arima(slx,order=ord,seasonal=seas)
+
+sarima
+
+n_sim <- 500
+ts_sims_arima <- NULL
+ts_sims <-  matrix(data = 0, ncol=144, nrow=n_sim)
+ts_sims_param <- matrix(data = 0, ncol=3, nrow=n_sim, dimnames = list(NULL, c( "ma1","sma1","sigma^2")))
+
+for (i in 1:n_sim) {
+  ts_sim <- simulate(sarima)
+  ts_sims[i,] <- ts_sim
+  ts <- arima(ts_sim, order = ord, seasonal = seas)
+  ts_sims_arima <- c(ts_sims_arima, ts)
+  ma1_sim <- ts$coef[1]
+  sma1_sim <- ts$coef[2]
+  sigma2_sim <- ts$sigma2
+  ts_sims_param[i,1] <- ma1_sim
+  ts_sims_param[i,2] <- sma1_sim
+  ts_sims_param[i,3] <- sigma2_sim
+}
+
+saveRDS(ts_sims_param, "ts_sims_param.txt")
+
+ts_sims_param <- as.data.frame(readRDS("ts_sims_param.txt"))
+n_sim <- length(ts_sims_param[,1])
+mean_param <- colSums(ts_sims_param)/n_sim
+covariance_param <- var(ts_sims_param)
+
+print("mean parameter values")
+print(mean_param)
+
+print("parameter sample covariance")
+print(covariance_param)
+
+print("parameter sample variance")
+print(sqrt(diag(covariance_param)))
+
+ggplot(gather(ts_sims_param), aes(value)) + 
+    geom_histogram(bins = 10,col = "black",fill = "cyan3") + 
+    facet_wrap(~key, scales = 'free_x')
+
+xs <- ts(log(x),frequency=12)
+fit1 <- StructTS(xs, type = "BSM")
+print("Estimated variances")
+fit1$coef
+
+#initial values
+
+
+#simulation
+simulate <- function(param, init, iterations = 144) {
+  G <- t(rep(0,13))
+  G[1] <- 1
+  G[3] <- 1
+  F <- diag(0, ncol = 13, nrow = 13)
+  F[1,1] <- F[1,2] <- F[2,2] <- 1
+  F[4:13, 3:12] <- diag(1,10)
+  F[3,3:13] <- -1
+
+
+  Q <- matrix(0, 13, 13)
+  
+  Q[1,1] <- param[1]
+  Q[2,2] <- param[2]
+  Q[3,3] <- param[3]
+  
+  sigma_w <- param[4]
+  
+  #mu <- param[5:17]
+  X <- matrix(NaN, 13,  iterations) 
+  Y <- matrix(NaN, 1,  iterations)
+  X[,1] <- t(init) # Start value
+  
+  for (t in 1:iterations) {
+    #cat("iteration=", t)  
+    W_t <- rnorm(1, mean=0, sd=sigma_w)
+    Y[,t] <- G%*%X[,t] + W_t # observation eq
+    
+    V_t <- rnorm(13, mean=0, sd=sqrt(diag(Q)))
+    
+    if (t < iterations) 
+      X[,t+1] <- F%*%X[,t] + V_t # state eq
+  }
+  
+  sim <- list(X=X, Y=Y)
+  class(sim) <- "simulate.ts"
+  return(sim)
+}
+# We need to not have a zero slope variance initially
+# therefore we use the next value
+sim <- simulate(param=fit1$coef, init=c(fit1$model0$a[1], fit1$model$a[2], fit1$model0$a[3:13])) 
+#save(sim, file="simulations.dat")
+
+m <- stsm.model(model = "BSM", y = xs, transPars = "StructTS")
+fit2 <- stsmFit(m, stsm.method = "maxlik.td.optim", method = "L-BFGS-B", 
+  KF.args = list(P0cov = TRUE))
+fit2.comps <- tsSmooth(fit2, P0cov = FALSE)$states
+plot(fit2.comps, main = "")
+
+fitted <- fitted(fit1)
+yhatss <- fitted[,1]+fitted[,3]
+plot(seq(1:144),xs,type="l",col="red",ylab=TeX("Y_t,\\hat{Y}_t"),xlab="Time")
+lines(seq(1:144),c(yhatss[1],yhatss[1:143]),col="blue")
+
+require("KFKSDS")
+m2 <- set.pars(m, pmax(fit2$par, .Machine$double.eps))
+ss <- char2numeric(m2)
+pred <- predict(ss, xs, n.ahead = 12)
+
+par(mfrow = c(3,1), mar = c(3,3,3,3))
+# observed series
+plot(cbind(xs, pred$pred), type = "n", plot.type = "single", ylab = "") #, ylim = c(8283372, 19365461))
+lines(xs)
+polygon(c(time(pred$pred), rev(time(pred$pred))), c(pred$pred + 2 * pred$se, rev(pred$pred)), col = "gray85", border = NA)
+polygon(c(time(pred$pred), rev(time(pred$pred))), c(pred$pred - 2 * pred$se, rev(pred$pred)), col = " gray85", border = NA)
+lines(pred$pred, col = "blue", lwd = 1.5)
+mtext(text = "forecasts of the observed series", side = 3, adj = 0)
+# level component
+plot(cbind(xs, pred$a[,1]), type = "n", plot.type = "single", ylab = "") #, ylim = c(8283372, 19365461)) 
+lines(xs)
+polygon(c(time(pred$a[,1]), rev(time(pred$a[,1]))), c(pred$a[,1] + 2 * sqrt(pred$P[,1]), rev(pred$a[,1])), col = "gray85", border = NA)
+polygon(c(time(pred$a[,1]), rev(time(pred$a[,1]))), c(pred$a[,1] - 2 * sqrt(pred$P[,1]), rev(pred$a[,1])), col = " gray85", border = NA)
+lines(pred$a[,1], col = "blue", lwd = 1.5)
+mtext(text = "forecasts of the level component", side = 3, adj = 0)
+# seasonal component
+plot(cbind(fit2.comps[,3], pred$a[,3]), type = "n", plot.type = "single", ylab = "") #, ylim = c(-3889253, 3801590))
+lines(fit2.comps[,3])
+polygon(c(time(pred$a[,3]), rev(time(pred$a[,3]))), c(pred$a[,3] + 2 * sqrt(pred$P[,3]), rev(pred$a[,3])), col = "gray85", border = NA)
+polygon(c(time(pred$a[,3]), rev(time(pred$a[,3]))), c(pred$a[,3] - 2 * sqrt(pred$P[,3]), rev(pred$a[,3])), col = " gray85", border = NA)
+lines(pred$a[,3], col = "blue", lwd = 1.5)
+mtext(text = "forecasts of the seasonal component", side = 3, adj = 0)
+
+tsdiag(fit1)
+
+plot(tsSmooth(fit1),main="")
+
+arma_y <- arima(ddlx,order = c(0,0,13),fixed=c(sarima$coef[1],0,0,0,0,0,0,0,0,0,0,sarima$coef[2],sarima$coef[1]*sarima$coef[2],0))
+arma_y_components <- list(phi=0,theta=c(arma_y$coef[1:13]),sigma2=arma_y$sigma2)
+ls <- l - 13
+gamma<-aacvf(arma_y_components,130)
+Gamma <- matrix(ncol=ls,nrow=ls)
+for (i in 1:ls){
+  for (j in 1:ls){
+    Gamma[i,j] <- gamma[abs(i-j)+1]
+  }
+}
+
+a <- vector("list",ls-1)
+for(i in 1:(ls-1)){
+  a[[i]] = solve(Gamma[1:i,1:i])%*%gamma[2:(i+1)]
+}
+
+yhat <-rep(0,ls)
+yhatse <- rep(gamma[1],ls)
+for (i in 2:ls){
+  yhat[i] <- t(a[[i-1]])%*%ddlx[(i-1):1]
+  yhatse[i] <- sqrt(gamma[1]-t(a[[i-1]])%*%gamma[2:i])
+}
+
+plot(ddlx,col=2,type="l",xlim=c(1,100),main="",ylab=TeX("Y_t,\\hat{Y}_t"),xlab="Time")
+lines(yhat,col=4)
+U <- yhat+yhatse
+L <- yhat-yhatse
+xx = c(time(U), rev(time(U))); yy = c(L, rev(U))
+polygon(xx, yy, border = 8, col = gray(.6, alpha = .2))
+
+lxhat <- rep(0,13)
+for (i in 14:l){
+  lxhat <- c(lxhat, yhat[i-13]+ lx[i-1]+lx[i-12]-lx[i-13])
+}
+lxhatse <- c(rep(0,13),yhatse)
+xhat <- exp(lxhat)
+
+plot(x,col=2,type="l",xlim=c(1,144),main="",ylab=TeX("X_t,\\hat{X}_t"),xlab="Time")
+lines(xhat,col=4)
+U <- exp(lxhat + lxhatse)
+L <- exp(lxhat - lxhatse)
+xx = c(time(U), rev(time(U))); yy = c(L, rev(U))
+polygon(xx, yy, border = 8, col = gray(.6, alpha = .2))
+
+forecast <- sarima.for(slx,12,0,1,1,0,1,1,12)
+
+plot(sarima$residuals[14:144],type="p",ylab="Residuals")
+
+qqnorm(sarima$residuals[14:144]/sd(sarima$residuals[14:144]),main="")
+qqline(sarima$residuals[14:144]/sd(sarima$residuals[14:144]),col=2)
+
+af<-autofit(x,p=0:7,q=0:7)
+#aa<-auto.arima(x,d=0)
+
 plot(sim$Y[1,], type = "l", main="Simulated data")
 ```
 
