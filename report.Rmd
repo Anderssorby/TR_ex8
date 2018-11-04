@@ -33,6 +33,7 @@ library(stsm)
 library(KFKSDS)
 ```
 \abstract{
+We analyze a timeseries of the number of people flying every month from 1949-1961. We need to account for seasonality, slope and local level to get a good model. For this we are using the SARIMA and State Space models which can incorporate these data features. We then can then compare the performance of the models and their practicality. The SARIMA model was significantly easier to implement and gave a good fit. The State Space model is more general and powerfull and this might be exploited better if one knows the underlying mechanisms better. 
 }
 
 # Introduction
@@ -184,16 +185,12 @@ A commonly used approach to solve the third problem is to consider the logarithm
 ```{r logTSMplot, echo=FALSE, fig.cap="\\label{fig:logts} The data set AirPassengers, after taking the logarithm of the data."}
 lx <- log(x)
 plot(seq(1,l),lx,type="l", xlab="t", ylab=TeX("log X_t"))
+dlx<- diff(lx)
 ```
 
 \noindent This is done in figure \ref{fig:logts}.
 The transformation seems to have stabilized the variance fairly well.
 Next we difference the logged data to remove the apparent linear trend.
-
-```{r difflogTSMplot, echo=FALSE, fig.cap="\\label{fig:dlts} The data set AirPassengers, transformed by differencing the logged data."}
-dlx<- diff(lx)
-plot(seq(1,l-1),dlx,type="l", xlab="t", ylab=TeX("$\\nabla$ log X_t"))
-```
 
 \noindent The differenced and logged data can be seen in figure \ref{fig:dlts}.
 
@@ -213,9 +210,6 @@ ddlx <- diff(dlx,12)
 plot(seq(1,l-13),ddlx,type="l", xlab="t", ylab=TeX("$\\nabla_{12} \\nabla$ log X_t"))
 ```
 
-```{r seasonal, echo=FALSE,fig.cap="\\label{fig:sacf} Sample ACF and PACF of $\\nabla_{12} \\nabla$ log X_t"}
-test <- acf2(ddlx,50,main="")
-```
 
 To determine the seasonal components, as in \eqref{eq:SARIMA}, we consider the ACF and PACF of the transformed data.
 These are shown in figure \ref{fig:sacf}.
@@ -349,7 +343,7 @@ fit1$coef
 
 We can now simulate our SS process given our estimated parameters and some initial value. With this we can estimate the variance of our parameters. 
 
-```{r ss-simulate, eval=FALSE, echo=TRUE}
+```{r ss-simulate-fun, eval=TRUE, echo=FALSE}
 #simulation
 simulate <- function(param, init, iterations = 144) {
   G <- t(rep(0,13))
@@ -389,7 +383,9 @@ simulate <- function(param, init, iterations = 144) {
   class(sim) <- "simulate.ts"
   return(sim)
 }
-
+```
+```{r ss-simulate, eval=FALSE, echo=FALSE}
+#simulation
 simulations <- 500
 variance_sim <- matrix(NaN, 4, simulations)
 for (i in 1:simulations) {
@@ -404,11 +400,9 @@ for (i in 1:simulations) {
 }
 saveRDS(variance_sim, file="simulations.dat")
 ```
-```{r sim-hist,fig.cap="\\label{histogramss} A histogram of the estimated variance of the simulated data."}
+```{r sim-hist,echo=FALSE,fig.cap="\\label{histogramss} A histogram of the estimated variance of the simulated data."}
 ts_sims_param_ss <- as.data.frame(t(readRDS(file="simulations.dat")))
-ggplot(gather(ts_sims_param_ss), aes(value)) + 
-    geom_histogram(bins = 10,col = "black",fill = "cyan3") + 
-    facet_wrap(~key, scales = 'free_x')
+
 n_sim <- length(ts_sims_param_ss[,1])
 mean_param <- colSums(ts_sims_param_ss)/n_sim
 covariance_param <- var(ts_sims_param_ss)
@@ -580,10 +574,6 @@ xx = c(time(U), rev(time(U))); yy = c(L, rev(U))
 polygon(xx, yy, border = 8, col = gray(.6, alpha = .2))
 ```
 
-```{r forecast2, echo=FALSE, fig.cap="\\label{fig:forecast} The SARIMA models' forecasted values of the logged air passenger data for the next twelve months in red, with standard errors in grey"}
-forecast <- sarima.for(slx,12,0,1,1,0,1,1,12)
-```
-
 Using the R function `sarima.for` we can forecast the logged data for the next year.
 The result is shown in figure \ref{fig:forecast}
 
@@ -605,7 +595,7 @@ af<-autofit(x,p=0:7,q=0:7)
 # Conclusion
 
 The SARIMA model performs very well, without much information about the mechanisms at work behind the scenes.
-The Basic Structural Model used here fits does not fit the data very well, while the much simpler SARIMA model fits quite well.
+The Basic Structural Model used here does not fit the data very well, while the much simpler SARIMA model fits quite well.
 It seems likely that State Space models are useful when one has some ideas about the underlying mechanisms at work.
 Without such insights one might as well choose a simpler model, such as the SARIMA in this case.
 
@@ -613,12 +603,27 @@ Without such insights one might as well choose a simpler model, such as the SARI
 
 Some additional plots
 
+```{r difflogTSMplot, echo=FALSE, fig.cap="\\label{fig:dlts} The data set AirPassengers, transformed by differencing the logged data."}
+plot(seq(1,l-1),dlx,type="l", xlab="t", ylab=TeX("$\\nabla$ log X_t"))
+```
+
+```{r seasonal, echo=FALSE,fig.cap="\\label{fig:sacf} Sample ACF and PACF of $\\nabla_{12} \\nabla$ log X_t"}
+test <- acf2(ddlx,50,main="")
+```
+
 ```{r appendix,eval=TRUE,echo=FALSE,fig.cap="One simulated series based on the state space model"}
+sim <- simulate(param=fit1$coef, init=c(fit1$model0$a[1], fit1$model$a[2], fit1$model0$a[3:13])) 
 plot(sim$Y[1,], type = "l", main="Simulated data")
 ```
 
 ```{r plotSS, echo= FALSE, fig.cap="\\label{fig:structfit} Residuals of the structural model"}
 tsdiag(fit1)
+```
+
+```{r histss,echo=FALSE,fig.cap="\\label{histogramss} A histogram of the estimated variance of the simulated data."}
+ggplot(gather(ts_sims_param_ss), aes(value)) + 
+    geom_histogram(bins = 10,col = "black",fill = "cyan3") + 
+    facet_wrap(~key, scales = 'free_x')
 ```
 
 ```{r simulationshist, echo = FALSE, fig.cap="\\label{fig:arimasimparam} Estimated coefficients from 500 realizations of the ARIMA(0,1,1)\\texttimes$(0,1,1)_{12}$ process, given the estimated coefficients from the original series."}
@@ -634,6 +639,11 @@ plot(sarima$residuals[14:144],type="p",ylab="Residuals")
 ```{r sarimaresqq,echo=FALSE,fig.cap="\\label{fig:sarimaresqq}Q-Q plot of the SARIMA models' standardized residuals"}
 qqnorm(sarima$residuals[14:144]/sd(sarima$residuals[14:144]),main="")
 qqline(sarima$residuals[14:144]/sd(sarima$residuals[14:144]),col=2)
+```
+
+
+```{r forecast2, echo=FALSE, fig.cap="\\label{fig:forecast} The SARIMA models' forecasted values of the logged air passenger data for the next twelve months in red, with standard errors in grey"}
+forecast <- sarima.for(slx,12,0,1,1,0,1,1,12)
 ```
 
 What follows is a complete copy of the computer code used by R markdown to produce the report.
