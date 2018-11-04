@@ -259,8 +259,9 @@ ggplot(gather(ts_sims_param), aes(value)) +
 ## Model prediction
 
 ###State space
-We are using the Structural model given by the r function StructTS to fit our data. This was significantly easier than other approaches. 
 
+We are using the Structural model given by the r function StructTS to fit our data. This was significantly easier than other approaches. It is important to choose good initial values for the method to acually find a good fit for the model.
+<!--
 ```{r ssest}
 num <- l
 Y <- x # Less confusing
@@ -273,9 +274,6 @@ F[4:13, 3:12] <- diag(1,10)
 F[3,3:13] <- -1
 #initial values
 Sigma0 <- diag(0.04, 13)
-
-xs <- ts(x,frequency=12)
-modSS <- StructTS(xs)
 z0 <- runif(13)
 sigma_w <- 1
 #model <- SS(F=F, H=G, z0=z0, Q=matrix(0,13),R=sigma_w)
@@ -297,9 +295,21 @@ mu0 <- c(140, 2, -30, -30, -50, -17, 20, 50, 50, 30, 0, 0, 0)
 init.par <- t(c(170, 0, 11, 0.01, mu0))
 #est <- optim(init.par, SSML, NULL, method = "BFGS", hessian = TRUE, control = list(trace=1, REPORT=1))
 #SE= sqrt(diag(solve(est$hessian)))
-
+```
+-->
+```{r tsstruct}
+xs <- ts(log(x),frequency=12)
+modSS <- StructTS(xs, type = "BSM", init = c(170, 0, 11, 0.01))
 modSS
 
+```
+
+We can see the model fit in figure \ref{fig:structfit} which seems to be not so good. There seems to be a dependency
+```{r plotSS, fig.cap="\\label{fig:structfit} Residuals of the structural model"}
+tsdiag(modSS)
+```
+```{r plotSS2, fig.cap="\\label{fig:structfit2} "}
+plot(tsSmooth(modSS))
 ```
 
 ### SARIMA
@@ -408,7 +418,7 @@ xx = c(time(U), rev(time(U))); yy = c(L, rev(U))
 polygon(xx, yy, border = 8, col = gray(.6, alpha = .2))
 ```
 
-```{r forecast, fig.cap="\\label{fig:forecast} The forecasted values of the logged air passenger data for the next twelve months in red, with standard errors in grey"}
+```{r forecast2, fig.cap="\\label{fig:forecast} The forecasted values of the logged air passenger data for the next twelve months in red, with standard errors in grey"}
 forecast <- sarima.for(slx,12,0,1,1,0,1,1,12)
 ```
 
