@@ -33,7 +33,7 @@ library(stsm)
 library(KFKSDS)
 ```
 \abstract{
-We analyze a timeseries of the number of people flying every month from 1949-1961. We need to account for seasonality, slope and local level to get a good model. For this we are using the SARIMA and State Space models which can incorporate these data features. We then can then compare the performance of the models and their practicality. The SARIMA model was significantly easier to implement and gave a good fit. The State Space model is more general and powerfull and this might be exploited better if one knows the underlying mechanisms better. 
+We analyze a timeseries of the number of people flying every month from 1949-1961. We need to account for seasonality, slope and local level to get a good model. For this we are using the SARIMA and State Space models which can incorporate these data features. We can then compare the performance of the models and their practicality. The SARIMA model was significantly easier to implement and gave a good fit. The State Space model is more general and powerful. This might be exploited better if one knows the underlying mechanisms better. 
 }
 \tableofcontents
 
