@@ -302,7 +302,12 @@ ggplot(gather(ts_sims_param), aes(value)) +
 
 ###State space
 
-We are using the Basic Structural model, as presented earlier, given by the r function StructTS to fit our data. This was significantly easier than other approaches. It is important to choose good initial values for the method to acually find a good fit for the model.
+We are using the Basic Structural model, as presented earlier, given by the r function `StructTS` to fit our data. 
+This was significantly easier than other approaches, and returns results pretty much instantaneously.
+The tradeoff is that the function uses the first observation as the initial state, which is dangerous for short data sets.
+In our case this results in $13$ fewer parameters to estimate.
+The only parameters that need to be estimated are the four variances from the noise vectors $W$ and $V$.
+Their estimates are included in the printout below.
 
 <!--
 ```{r ssest}
@@ -343,9 +348,10 @@ init.par <- t(c(170, 0, 11, 0.01, mu0))
 ```{r tsstruct,echo=FALSE}
 xs <- ts(log(x),frequency=12)
 fit1 <- StructTS(xs, type = "BSM")
+print("Estimated variances")
 fit1$coef
-fit1$model$a
 ```
+
 
 ```{r stsm,warning=FALSE,echo=FALSE}
 m <- stsm.model(model = "BSM", y = xs, transPars = "StructTS")
@@ -395,15 +401,15 @@ mtext(text = "forecasts of the seasonal component", side = 3, adj = 0)
 ```
 
 
-```{r plotSS, fig.cap="\\label{fig:structfit} Residuals of the structural model"}
+```{r plotSS, echo= FALSE, fig.cap="\\label{fig:structfit} Residuals of the structural model"}
 tsdiag(fit1)
 ```
 
-```{r plotSS2, echi=FALSE, fig.cap="\\label{fig:structfit2} Fitted values for the state, according to the structural model"}
+```{r plotSS2, echo=FALSE, fig.cap="\\label{fig:structfit2} Fitted values for the state, according to the structural model"}
 plot(tsSmooth(fit1),main="")
 ```
 
-We can see the model fit in figure \ref{fig:structfit} which seems to be not so good. There seems to be a dependency
+We can see the model fit in figure \ref{fig:structfit} which seems to be not so good. The residuals seem to have some seasonality, which is confirmed to be significant by the Ljung-Box statistic.
 
 ### SARIMA
 
@@ -505,7 +511,7 @@ xx = c(time(U), rev(time(U))); yy = c(L, rev(U))
 polygon(xx, yy, border = 8, col = gray(.6, alpha = .2))
 ```
 
-```{r forecast2, fig.cap="\\label{fig:forecast} The SARIMA models' forecasted values of the logged air passenger data for the next twelve months in red, with standard errors in grey"}
+```{r forecast2, echo=FALSE, fig.cap="\\label{fig:forecast} The SARIMA models' forecasted values of the logged air passenger data for the next twelve months in red, with standard errors in grey"}
 forecast <- sarima.for(slx,12,0,1,1,0,1,1,12)
 ```
 
