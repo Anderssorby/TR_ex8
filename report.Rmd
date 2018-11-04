@@ -33,6 +33,7 @@ library(stsm)
 library(KFKSDS)
 ```
 \abstract{
+We analyze a timeseries of the number of people flying every month from 1949-1961. We need to account for seasonality, slope and local level to get a good model. For this we are using the SARIMA and State Space models which can incorporate these data features. We then can then compare the performance of the models and their practicality. The SARIMA model was significantly easier to implement and gave a good fit. The State Space model is more general and powerfull and this might be exploited better if one knows the underlying mechanisms better. 
 }
 
 # Introduction
@@ -354,7 +355,7 @@ fit1$coef
 
 We can now simulate our SS process given our estimated parameters and some initial value. With this we can estimate the variance of our parameters. 
 
-```{r ss-simulate, eval=FALSE, echo=TRUE}
+```{r ss-simulate-fun, eval=TRUE, echo=TRUE}
 #simulation
 simulate <- function(param, init, iterations = 144) {
   G <- t(rep(0,13))
@@ -394,7 +395,9 @@ simulate <- function(param, init, iterations = 144) {
   class(sim) <- "simulate.ts"
   return(sim)
 }
-
+```
+```{r ss-simulate, eval=FALSE, echo=TRUE}
+#simulation
 simulations <- 500
 variance_sim <- matrix(NaN, 4, simulations)
 for (i in 1:simulations) {
@@ -623,7 +626,7 @@ af<-autofit(x,p=0:7,q=0:7)
 # Conclusion
 
 The SARIMA model performs very well, without much information about the mechanisms at work behind the scenes.
-The Basic Structural Model used here fits does not fit the data very well, while the much simpler SARIMA model fits quite well.
+The Basic Structural Model used here does not fit the data very well, while the much simpler SARIMA model fits quite well.
 It seems likely that State Space models are useful when one has some ideas about the underlying mechanisms at work.
 Without such insights one might as well choose a simpler model, such as the SARIMA in this case.
 
@@ -632,6 +635,7 @@ Without such insights one might as well choose a simpler model, such as the SARI
 Some additional plots
 
 ```{r appendix,eval=TRUE,echo=FALSE}
+sim <- simulate(param=fit1$coef, init=c(fit1$model0$a[1], fit1$model$a[2], fit1$model0$a[3:13])) 
 plot(sim$Y[1,], type = "l", main="Simulated data")
 ```
 
