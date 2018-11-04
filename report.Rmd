@@ -352,6 +352,56 @@ print("Estimated variances")
 fit1$coef
 ```
 
+We can now simulate our SS process given our estimated parameters and some initial value.
+
+```{r ss-simulate, echo=TRUE}
+#initial values
+
+
+#simulation
+simulate <- function(param, init, iterations = 144) {
+  G <- t(rep(0,13))
+  G[1] <- 1
+  G[3] <- 1
+  F <- diag(0, ncol = 13, nrow = 13)
+  F[1,1] <- F[1,2] <- F[2,2] <- 1
+  F[4:13, 3:12] <- diag(1,10)
+  F[3,3:13] <- -1
+
+
+  Q <- matrix(0, 13, 13)
+  
+  Q[1,1] <- param[1]
+  Q[2,2] <- param[2]
+  Q[3,3] <- param[3]
+  
+  sigma_w <- param[4]
+  
+  #mu <- param[5:17]
+  X <- matrix(NaN, 13,  iterations) 
+  Y <- matrix(NaN, 1,  iterations)
+  X[,1] <- t(init) # Start value
+  
+  for (t in 1:iterations) {
+    #cat("iteration=", t)  
+    W_t <- rnorm(1, mean=0, sd=sigma_w)
+    Y[,t] <- G%*%X[,t] + W_t # observation eq
+    
+    V_t <- rnorm(13, mean=0, sd=sqrt(diag(Q)))
+    
+    if (t < iterations) 
+      X[,t+1] <- F%*%X[,t] + V_t # state eq
+  }
+  
+  sim <- list(X=X, Y=Y)
+  class(sim) <- "simulate.ts"
+  return(sim)
+}
+# We need to not have a zero slope variance initially
+# therefore we use the next value
+sim <- simulate(param=fit1$coef, init=c(fit1$model0$a[1], fit1$model$a[2], fit1$model0$a[3:13])) 
+#save(sim, file="simulations.dat")
+```
 
 ```{r stsm,warning=FALSE,echo=FALSE}
 m <- stsm.model(model = "BSM", y = xs, transPars = "StructTS")
@@ -554,7 +604,7 @@ af<-autofit(x,p=0:7,q=0:7)
 What follows is a complete copy of the computer code used by R markdown to produce the report.
 
 ```{r appendix,eval=FALSE,echo=TRUE}
-
+plot(sim$Y[1,], type = "l", main="Simulated data")
 ```
 
 \begin{thebibliography}{9}
