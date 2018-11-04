@@ -43,13 +43,13 @@ In this project we will analyze a time series using two different models, namely
 
 A possibly multivariate state space model consists of two equations. First the observation equation 
 \begin{equation}
-Y_t = G_t X_t + W_t, \hspace{5em} t \in \mathbb{N}
+Y_t = G_t X_t + W_t, \hspace{5em} t \in \mathbb{N} \label{ssobs}
 \end{equation}
 where $W_t \sim WN(0, \{R_t\})$. Secondly there is the state equation 
 \begin{equation}
-X_{t+1} = F_t X_t + V_t, \hspace{5em} t\in \mathbb{N}
+X_{t+1} = F_t X_t + V_t, \hspace{5em} t\in \mathbb{N} \label{ssstate}
 \end{equation}
-where $V_t \sim WN(0, \{Q_t\})$. 
+where $V_t \sim WN(0, \{Q_t\})$. In this analysis we are going to use the special case The Basic Structural Model which we will define later. 
 
 ## The SARIMA process
 
@@ -133,6 +133,41 @@ x <- x[,1]
 l <- length(x)
 ```
 
+###The Basic Structural Model
+
+A possible simple choice of model for the state space model is The Basic Structural Model (BSM). We have state space model like in \eqref{ssobs} and \eqref{ssstate} and the following definition for $F$, $Q$ and $G$,
+\[
+F=
+  \begin{bmatrix}
+    1 & 1 & 0  & 0 & \ldots & 0 & 0 \\
+    0 & 1 & 0 & 0  & \ldots & 0 & 0 \\
+    0 & 0 & -1 & 0 &\ldots & -1 & -1  \\
+    0 & 0 & 1 & 0 & \ldots & 0  & 0 \\ 
+    0 & 0 & 0 & 1 & \ldots & 0  & 0\\ 
+    \vdots & \vdots & \vdots & \vdots & \ddots & \vdots & \vdots\\ 
+    0 & 0 & 0 & 0 & \ldots & 1  & 0\\ 
+  \end{bmatrix}
+\]
+\[
+G = 
+  \begin{bmatrix}
+    1 & 0 & 1  & 0 & \ldots & 0 & 0 
+  \end{bmatrix}
+\]
+
+\[
+Q=
+  \begin{bmatrix}
+    \sigma_1^2 & 1 & 0  & 0 & \ldots & 0 & 0 \\
+    0 & \sigma_2^2 & 0 & 0  & \ldots & 0 & 0 \\
+    0 & 0 & \sigma_3^2 & 0 &\ldots & 0 & 0  \\
+    0 & 0 & 0 & 0 & \ldots & 0  & 0 \\ 
+    \vdots & \vdots & \vdots & \vdots & \ddots & \vdots & \vdots\\ 
+    0 & 0 & 0 & 0 & \ldots & 0  & 0\\ 
+  \end{bmatrix}
+\]
+
+The state vector $X_t$ is a 13-dimensional and the matricies have the dimension suitable for this form. This means that the there are in total 5 parameters that we need to estimate namely $\sigma_1^2$, $\sigma_2^2$, $\sigma_3^2$, $\sigma_w^2 = W_t$ and $\mu=X_1$. 
 
 # Data analysis
 
@@ -350,10 +385,10 @@ mtext(text = "forecasts of the seasonal component", side = 3, adj = 0)
 ```
 
 ```{r plotSS, fig.cap="\\label{fig:structfit} Residuals of the structural model"}
-tsdiag(modSS)
+tsdiag(fit1)
 ```
 ```{r plotSS2, fig.cap="\\label{fig:structfit2} "}
-plot(tsSmooth(modSS))
+plot(tsSmooth(fit1))
 ```
 
 ### SARIMA
