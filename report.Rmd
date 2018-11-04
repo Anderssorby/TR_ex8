@@ -352,12 +352,9 @@ print("Estimated variances")
 fit1$coef
 ```
 
-We can now simulate our SS process given our estimated parameters and some initial value.
+We can now simulate our SS process given our estimated parameters and some initial value. With this we can estimate the variance of our parameters. 
 
-```{r ss-simulate, echo=TRUE}
-#initial values
-
-
+```{r ss-simulate, eval=FALSE, echo=TRUE}
 #simulation
 simulate <- function(param, init, iterations = 144) {
   G <- t(rep(0,13))
@@ -397,10 +394,38 @@ simulate <- function(param, init, iterations = 144) {
   class(sim) <- "simulate.ts"
   return(sim)
 }
-# We need to not have a zero slope variance initially
-# therefore we use the next value
-sim <- simulate(param=fit1$coef, init=c(fit1$model0$a[1], fit1$model$a[2], fit1$model0$a[3:13])) 
-#save(sim, file="simulations.dat")
+
+simulations <- 500
+variance_sim <- matrix(NaN, 4, simulations)
+for (i in 1:simulations) {
+  cat("Simulation", i, "\n")
+  # We need to not have a zero slope variance initially
+  # therefore we use the next value
+  sim <- simulate(param=fit1$coef, init=c(fit1$model0$a[1], fit1$model$a[2], fit1$model0$a[3:13])) 
+  
+  sim_s <- ts(sim$Y[1,], frequency=12)
+  fit_sim <- StructTS(sim_s, type = "BSM") 
+  variance_sim[,i] <- fit_sim$coef
+}
+saveRDS(variance_sim, file="simulations.dat")
+```
+```{r sim-hist,fig.cap="\\label{histogramss} A histogram of the estimated variance of the simulated data."}
+ts_sims_param_ss <- as.data.frame(t(readRDS(file="simulations.dat")))
+ggplot(gather(ts_sims_param_ss), aes(value)) + 
+    geom_histogram(bins = 10,col = "black",fill = "cyan3") + 
+    facet_wrap(~key, scales = 'free_x')
+n_sim <- length(ts_sims_param_ss[,1])
+mean_param <- colSums(ts_sims_param_ss)/n_sim
+covariance_param <- var(ts_sims_param_ss)
+
+print("mean parameter values")
+print(mean_param)
+
+print("parameter sample covariance")
+print(covariance_param)
+
+print("parameter sample variance")
+print(sqrt(diag(covariance_param)))
 ```
 
 ```{r stsm,warning=FALSE,echo=FALSE}
