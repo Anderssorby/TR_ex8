@@ -394,13 +394,13 @@ lines(pred$a[,3], col = "blue", lwd = 1.5)
 mtext(text = "forecasts of the seasonal component", side = 3, adj = 0)
 ```
 
-<<<<<<< Updated upstream
+
 ```{r plotSS, fig.cap="\\label{fig:structfit} Residuals of the structural model"}
 tsdiag(fit1)
 ```
 
 ```{r plotSS2, echi=FALSE, fig.cap="\\label{fig:structfit2} Fitted values for the state, according to the structural model"}
-plot(tsSmooth(fit2))
+plot(tsSmooth(fit1),main="")
 ```
 
 We can see the model fit in figure \ref{fig:structfit} which seems to be not so good. There seems to be a dependency
