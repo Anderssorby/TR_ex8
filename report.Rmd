@@ -169,7 +169,7 @@ Q=
   \end{bmatrix}
 \]
 
-The state vector $X_t$ is a 13-dimensional and the matricies have the dimension suitable for this form. This means that the there are in total 5 parameters that we need to estimate namely $\sigma_1^2$, $\sigma_2^2$, $\sigma_3^2$, $\sigma_w^2 = W_t$ and $\mu=X_1$. We will use maximum likelihood to estimate this. 
+The state vector $X_t$ is a 13-dimensional and the matricies have the dimension suitable for this form. This means that the there are in total 5 parameters that we need to estimate namely $\sigma_1^2$, $\sigma_2^2$, $\sigma_3^2$, $\sigma_w^2 = R_t$ and $\mu=X_1$. We will use maximum likelihood to estimate this. 
 
 
 # Data analysis
