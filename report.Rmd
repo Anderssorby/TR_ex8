@@ -529,6 +529,10 @@ The standardized residuals seem uncorrelated and correspond closely with the sta
 
 The State Space model is a more general model than SARIMA so it would possibly be able to incorporate more interesting features. However the SARIMA is performing much better than the State Space and is much easier to analyze. 
 
+The BSM required much more fine tuning and tinkering than the SARIMA to get a good fit. It is probably possible to get and even better model for SS by including even more considerations, but this would require much more work. This is because any SARIMA model can be represented as a SS model and is therefore strictly contained in the set of possible SS models. 
+
+
+
 
 ```{r modelchoice, echo=FALSE,eval=FALSE}
 af<-autofit(x,p=0:7,q=0:7)
